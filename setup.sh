@@ -19,6 +19,7 @@ podman run -d \
     -v marcom_data:/var/lib/mysql \
     -p 3306:3306 \
     --restart always \
+    --network host \
     mysql:8.3
 
 # Build the Bun app image
@@ -34,7 +35,7 @@ podman run -d \
     --env-file .env \
     -v $(pwd)/src:/app \
     -v bun_cache:/root/.bun \
-    --link mysql \
+    --network host \
     my-bun-app
 
 echo "Containers are up and running!"
