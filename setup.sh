@@ -17,8 +17,15 @@ podman run -d \
     -v marcom_data:/var/lib/mysql \
     -p 3306:3306 \
     --restart always \
-    --network host \
+    --network bridge \
     mysql:8.3
+
+# Wait for MySQL to be ready
+echo "Waiting for MySQL to be ready..."
+until podman exec mysql mysqladmin --user=root --password="$MYSQL_ROOT_PASSWORD" --host=localhost --silent status; do
+    echo "Waiting for MySQL to initialize..."
+    sleep 5
+done
 
 # Build the Bun app image
 echo "Building Bun app image..."
@@ -32,7 +39,8 @@ podman run -d \
     --restart always \
     --env-file .env \
     -v $(pwd)/src:/app \
-    --network host \
+    --network bridge \
     marcom_services
 
 echo "Containers are up and running!"
+
