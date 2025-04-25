@@ -1,4 +1,3 @@
-
 #!/bin/bash
 
 # Stop and remove existing containers if any
@@ -14,7 +13,7 @@ podman volume create bun_cache || echo "Volume 'bun_cache' already exists"
 echo "Starting MySQL container..."
 podman run -d \
     --name mysql \
-    -e MYSQL_ROOT_PASSWORD=rootpassword \
+    --env-file .env \
     -v $(pwd)/init.sql:/docker-entrypoint-initdb.d/init.sql \
     -v marcom_data:/var/lib/mysql \
     -p 3306:3306 \
