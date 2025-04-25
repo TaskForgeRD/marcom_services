@@ -7,7 +7,6 @@ podman rm mysql app
 # Create volumes if they don't exist
 echo "Creating volumes..."
 podman volume create marcom_data || echo "Volume 'marcom_data' already exists"
-podman volume create bun_cache || echo "Volume 'bun_cache' already exists"
 
 # Run MySQL container
 echo "Starting MySQL container..."
@@ -23,7 +22,7 @@ podman run -d \
 
 # Build the Bun app image
 echo "Building Bun app image..."
-podman build -t my-bun-app .
+podman build -t marcom_services .
 
 # Run Bun app container
 echo "Starting Bun app container..."
@@ -33,8 +32,7 @@ podman run -d \
     --restart always \
     --env-file .env \
     -v $(pwd)/src:/app \
-    -v bun_cache:/root/.bun \
     --network host \
-    my-bun-app
+    marcom_services
 
 echo "Containers are up and running!"
