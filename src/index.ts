@@ -9,18 +9,29 @@ const {
 } = process.env;
 
 const app = new Elysia();
+try {
+  const pool = mysql.createPool({
+    host: MYSQL_HOST,
+    user: MYSQL_USER,
+    password: MYSQL_PASSWORD,
+    database: MYSQL_DATABASE,
+  });
 
-const pool = mysql.createPool({
-  host: MYSQL_HOST,
-  user: MYSQL_USER,
-  password: MYSQL_PASSWORD,
-  database: MYSQL_DATABASE,
-});
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS users (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      name VARCHAR(255) NOT NULL
+    )
+  `);
 
-app.get("/users", async () => {
-  const [rows] = await pool.query("SELECT * FROM users");
-  return rows;
-});
+  app.get("/users", async () => {
+    const [rows] = await pool.query("SELECT * FROM users");
+    return rows;
+  });
 
-app.listen(3000);
-console.log("🦊 Elysia running at http://localhost:3000");
+  app.listen(3000);
+  console.log("🦊 Elysia running at http://localhost:3000");
+} catch (error) {
+  console.error("Error connecting to the database:", error);
+  process.exit(1);
+}
