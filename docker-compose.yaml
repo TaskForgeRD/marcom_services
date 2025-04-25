@@ -23,3 +23,7 @@ services:
       - db
     env_file:
       - .env
+
+volumes:
+  marcom_data:
+  bun_cache:
