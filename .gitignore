@@ -30,3 +30,5 @@ docker-compose.override.yml
 */*.bun
 
 mysql/
+
+/uploads

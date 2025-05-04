@@ -48,12 +48,10 @@ CREATE TABLE IF NOT EXISTS dokumen_materi_keyword (
 -- Insert sample data
 -- Brands
 INSERT INTO brand (name) VALUES 
-  ('BRImo'),
-  ('BRI'),
-  ('BRISpot');
+  ('BRImo');
 
 -- Clusters
 INSERT INTO cluster (name) VALUES 
   ('Bayar-Bayar Harian'),
-  ('Transaksi Finansial'),
-  ('Fitur Digital');
+  ('Bayar-Bayar Bulanan'),
+  ('Tagihan');

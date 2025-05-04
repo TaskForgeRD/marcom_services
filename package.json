@@ -6,7 +6,6 @@
     "start": "bun src/index.ts"
   },
   "dependencies": {
-    "busboy": "^1.6.0",
     "elysia": "^1.2.25",
     "mysql2": "^3.14.1"
   },
