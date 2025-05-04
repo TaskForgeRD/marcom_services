@@ -1,3 +1,5 @@
+version: '3.9'
+
 services:
   db:
     image: mysql:8.3
@@ -18,14 +20,16 @@ services:
     container_name: app
     restart: always
     ports:
-      - "3000:3000"
+      - "5000:5000"  # Pastikan port mappingnya sesuai
     depends_on:
       - db
     env_file:
       - .env
     volumes:
-      - ./src:/app
+      - ./src:/app/src
+      - ./uploads:/app/uploads
       - bun_cache:/root/.bun
+
 
 volumes:
   marcom_data:
