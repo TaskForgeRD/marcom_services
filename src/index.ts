@@ -14,8 +14,6 @@ const app = new Elysia()
   .use(clusterController)
   .use(materiController)
   .use(fileRoutes)
-  .listen(process.env.PORT || 5000);
+  .listen(5000);
 
 console.log(`🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port || 5000}`);
-
-export default app;
