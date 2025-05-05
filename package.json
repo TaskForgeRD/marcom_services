@@ -3,7 +3,8 @@
   "version": "1.0.50",
   "scripts": {
     "dev": "bun run --watch src/index.ts",
-    "start": "bun src/index.ts"
+    "start": "bun src/index.ts",
+    "setup": "bash setup.sh"
   },
   "dependencies": {
     "elysia": "^1.2.25",

@@ -35,7 +35,7 @@ podman build -t marcom_services .
 echo "Starting Bun app container..."
 podman run -d \
     --name app \
-    -p 3000:3000 \
+    -p 5000:5000 \
     --restart always \
     --env-file .env \
     -v $(pwd)/src:/app \

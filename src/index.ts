@@ -5,6 +5,14 @@ import { brandController } from './controllers/brandController';
 import { clusterController } from './controllers/clusterController';
 import { materiController } from './controllers/materiController';
 import { fileRoutes } from './routes/fileRoutes';
+import * as fs from 'fs';
+import * as path from 'path';
+
+// Ensure uploads directory exists
+const uploadsDir = path.join(process.cwd(), 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
 
 // Create the app
 const app = new Elysia()
@@ -17,3 +25,5 @@ const app = new Elysia()
   .listen(5000);
 
 console.log(`🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port || 5000}`);
+
+// export default app;
