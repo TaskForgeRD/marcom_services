@@ -163,13 +163,18 @@ async function processDokumenMateri(formData: FormData, materiId: number) {
   for (let i = 0; i < dokumenCount; i++) {
     const linkDokumen = formData.get(`dokumenMateri[${i}][linkDokumen]`) as string;
     const tipeMateri = formData.get(`dokumenMateri[${i}][tipeMateri]`) as string;
-    const thumbnail = formData.get(`dokumenMateri[${i}][thumbnail]`) as File;
+    const thumbnail = formData.get(`dokumenMateri[${i}][thumbnail]`);
     const keywordsRaw = formData.get(`dokumenMateri[${i}][keywords]`) as string;
     
     // Process thumbnail if present
     let thumbnailFileName = '';
-    if (thumbnail && thumbnail.size > 0) {
+
+    if (thumbnail instanceof File && thumbnail.size > 0) {
+      // Jika ada file baru yang diunggah
       thumbnailFileName = await saveFile(thumbnail);
+    } else if (typeof thumbnail === 'string' && thumbnail) {
+      // Jika ada nama file yang dikirim (gambar lama)
+      thumbnailFileName = thumbnail;
     }
     
     // Create dokumen record
