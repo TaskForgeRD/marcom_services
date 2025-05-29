@@ -1,21 +1,70 @@
+// models/materiModel.ts
 import { pool } from '../config/database';
-import { Materi, DokumenMateri, DokumenMateriWithKeywords } from '../types';
+import { Materi, DokumenMateri } from '../types';
 
-export async function getAllMateri() {
-  const [materiRows] = await pool.query(`
-    SELECT m.*, b.name AS brand_name, c.name AS cluster_name
+export async function getAllMateriByUser(userId: number) {
+  const [rows] = await pool.query(`
+    SELECT 
+      m.*, 
+      b.name AS brand_name, 
+      c.name AS cluster_name,
+      dm.id AS dokumen_id,
+      dm.link_dokumen,
+      dm.thumbnail,
+      dm.tipe_materi,
+      GROUP_CONCAT(dmk.keyword) AS keywords
     FROM materi m
     JOIN brand b ON m.brand_id = b.id
     JOIN cluster c ON m.cluster_id = c.id
-  `);
-  
-  return materiRows;
+    LEFT JOIN dokumen_materi dm ON m.id = dm.materi_id
+    LEFT JOIN dokumen_materi_keyword dmk ON dm.id = dmk.dokumen_materi_id
+    WHERE m.user_id = ?
+    GROUP BY m.id, dm.id
+    ORDER BY m.created_at DESC
+  `, [userId]);
+
+  // Organisasi hasil ke dalam struktur nested
+  const materiMap = new Map<number, any>();
+
+  (rows as any[]).forEach(row => {
+    if (!materiMap.has(row.id)) {
+      materiMap.set(row.id, {
+        id: row.id,
+        user_id: row.user_id,
+        brand_id: row.brand_id,
+        brand_name: row.brand_name,
+        cluster_id: row.cluster_id,
+        cluster_name: row.cluster_name,
+        fitur: row.fitur,
+        nama_materi: row.nama_materi,
+        jenis: row.jenis,
+        start_date: row.start_date,
+        end_date: row.end_date,
+        periode: row.periode,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+        dokumenMateri: [],
+      });
+    }
+
+    if (row.dokumen_id) {
+      materiMap.get(row.id).dokumenMateri.push({
+        id: row.dokumen_id,
+        linkDokumen: row.link_dokumen,
+        thumbnail: row.thumbnail,
+        tipeMateri: row.tipe_materi,
+        keywords: row.keywords ? row.keywords.split(',') : [],
+      });
+    }
+  });
+
+  return Array.from(materiMap.values());
 }
 
-export async function getMateriById(id: number) {
+export async function getMateriById(id: number, userId: number) {
   const [materiRows] = await pool.query(
-    'SELECT * FROM materi WHERE id = ?',
-    [id]
+    'SELECT * FROM materi WHERE id = ? AND user_id = ?',
+    [id, userId]
   );
   
   if (!materiRows || (materiRows as any[]).length === 0) {
@@ -27,9 +76,10 @@ export async function getMateriById(id: number) {
 
 export async function createMateri(materi: Materi) {
   const [result] = await pool.execute(
-    `INSERT INTO materi (brand_id, cluster_id, fitur, nama_materi, jenis, start_date, end_date, periode)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO materi (user_id, brand_id, cluster_id, fitur, nama_materi, jenis, start_date, end_date, periode)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
+      materi.user_id,
       materi.brand_id, 
       materi.cluster_id, 
       materi.fitur, 
@@ -49,7 +99,7 @@ export async function updateMateri(id: number, materi: Materi) {
     `UPDATE materi 
      SET brand_id = ?, cluster_id = ?, fitur = ?, nama_materi = ?, jenis = ?, 
          start_date = ?, end_date = ?, periode = ? 
-     WHERE id = ?`,
+     WHERE id = ? AND user_id = ?`,
     [
       materi.brand_id,
       materi.cluster_id,
@@ -59,7 +109,8 @@ export async function updateMateri(id: number, materi: Materi) {
       materi.start_date,
       materi.end_date,
       materi.periode,
-      id
+      id,
+      materi.user_id
     ]
   );
 }
@@ -111,5 +162,13 @@ export async function deleteDokumenKeywords(dokumenId: number) {
 }
 
 export async function deleteDokumenByMateriId(materiId: number) {
+  // First delete keywords
+  await pool.execute(`
+    DELETE dmk FROM dokumen_materi_keyword dmk
+    JOIN dokumen_materi dm ON dmk.dokumen_materi_id = dm.id
+    WHERE dm.materi_id = ?
+  `, [materiId]);
+  
+  // Then delete documents
   await pool.execute('DELETE FROM dokumen_materi WHERE materi_id = ?', [materiId]);
 }

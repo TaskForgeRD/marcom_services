@@ -1,5 +1,7 @@
+// types.ts
 export type Materi = {
     id?: number;
+    user_id: number;
     brand_id: number;
     cluster_id: number;
     fitur: string;
@@ -8,6 +10,8 @@ export type Materi = {
     start_date: string;
     end_date: string;
     periode: string;
+    created_at?: string;
+    updated_at?: string;
 };
 
 export type DokumenMateri = {
@@ -42,4 +46,14 @@ export type DokumenMateriWithKeywords = {
     thumbnail: string;
     tipeMateri: string;
     keywords: string[];
+};
+
+export type User = {
+    id: number;
+    google_id: string;
+    email: string;
+    name: string;
+    avatar_url?: string;
+    created_at?: string;
+    updated_at?: string;
 };
