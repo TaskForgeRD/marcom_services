@@ -146,6 +146,9 @@ export async function updateMateri(id: number, formData: FormData, userId: numbe
     // Update materi
     await materiModel.updateMateri(id, materi);
 
+    // Get existing documents to preserve thumbnails
+    const existingDokumens = await materiModel.getDokumenMateriByMateriId(id);
+    
     // Delete existing documents and keywords
     await materiModel.deleteDokumenByMateriId(id);
 
@@ -157,11 +160,27 @@ export async function updateMateri(id: number, formData: FormData, userId: numbe
       const tipeMateri = formData.get(`dokumenMateri[${i}][tipeMateri]`) as string;
       const thumbnailFile = formData.get(`dokumenMateri[${i}][thumbnail]`) as File;
       const keywords = JSON.parse(formData.get(`dokumenMateri[${i}][keywords]`) as string || '[]');
+      
+      // Get existing thumbnail path from form data or find matching existing document
+      const existingThumbnailPath = formData.get(`dokumenMateri[${i}][existingThumbnail]`) as string;
 
-      if (linkDokumen || thumbnailFile) {
+      if (linkDokumen || thumbnailFile || existingThumbnailPath) {
         let thumbnailPath = '';
+        
         if (thumbnailFile && thumbnailFile.size > 0) {
+          // New thumbnail uploaded
           thumbnailPath = await saveFile(thumbnailFile);
+        } else if (existingThumbnailPath) {
+          // Use existing thumbnail path
+          thumbnailPath = existingThumbnailPath;
+        } else {
+          // Try to match with existing document by link or index
+          const existingDoc = existingDokumens.find((doc: any, index: number) => 
+            doc.link_dokumen === linkDokumen || index === i
+          );
+          if (existingDoc && existingDoc.thumbnail) {
+            thumbnailPath = existingDoc.thumbnail;
+          }
         }
 
         const dokumenId = await materiModel.createDokumenMateri({
