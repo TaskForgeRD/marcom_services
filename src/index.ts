@@ -1,5 +1,5 @@
-// index.ts
 import { Elysia } from 'elysia';
+import { createServer } from 'http';
 import { corsMiddleware } from './middlewares/cors';
 import { errorHandler } from './middlewares/errorHandler';
 import { authController } from './controllers/authController';
@@ -7,9 +7,9 @@ import { brandController } from './controllers/brandController';
 import { clusterController } from './controllers/clusterController';
 import { materiController } from './controllers/materiController';
 import { fileRoutes } from './routes/fileRoutes';
+import { setupSocketIO } from './socket/socketServer';
 import * as fs from 'fs';
 import * as path from 'path';
-
 
 // Ensure uploads directory exists
 const uploadsDir = path.join(process.cwd(), 'uploads');
@@ -19,13 +19,24 @@ if (!fs.existsSync(uploadsDir)) {
 
 // Create the app
 const app = new Elysia()
-.use(corsMiddleware)
-.use(errorHandler)
-.use(authController)
-.use(brandController)
-.use(clusterController)
-.use(materiController)
-.use(fileRoutes)
-  .listen(5000);
+  .use(corsMiddleware)
+  .use(errorHandler)
+  .use(authController)
+  .use(brandController)
+  .use(clusterController)
+  .use(materiController)
+  .use(fileRoutes);
 
-console.log(`🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port || 5000}`);
+// Create HTTP server and setup Socket.IO
+const server = createServer();
+const io = setupSocketIO(server);
+
+// Start the server
+app.listen(5000);
+server.listen(5001); // Socket.IO on different port
+
+console.log(`🦊 Elysia is running at localhost:5000`);
+console.log(`🔌 Socket.IO is running at localhost:5001`);
+
+// Export io instance for use in other files
+export { io };
