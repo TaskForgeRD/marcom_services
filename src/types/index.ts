@@ -4,9 +4,9 @@ export type Materi = {
     user_id: number;
     brand_id: number;
     cluster_id: number;
-    fitur: string;
+    fitur_id?: number;  // Changed from fitur: string
+    jenis_id?: number;  // Changed from jenis: string
     nama_materi: string;
-    jenis: string;
     start_date: string;
     end_date: string;
     periode: string;
@@ -33,10 +33,10 @@ export type MateriResponse = {
     brand: string;
     cluster: string;
     fitur: string;
-    namaMateri: string;
+    nama_materi: string;
     jenis: string;
-    startDate: string;
-    endDate: string;
+    start_date: string;
+    end_date: string;
     periode: string;
     dokumenMateri: DokumenMateriWithKeywords[];
 };

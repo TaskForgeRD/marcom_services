@@ -82,9 +82,9 @@ export const statsController = new Elysia()
       return {
         total: userMateri.length,
         fitur: userMateri.filter(m => m.fitur && m.fitur.trim()).length,
-        komunikasi: userMateri.filter(m => m.namaMateri && m.namaMateri.trim()).length,
-        aktif: userMateri.filter(m => new Date(m.endDate) > now).length,
-        expired: userMateri.filter(m => new Date(m.endDate) <= now).length,
+        komunikasi: userMateri.filter(m => m.nama_materi && m.nama_materi.trim()).length,
+        aktif: userMateri.filter(m => new Date(m.end_date) > now).length,
+        expired: userMateri.filter(m => new Date(m.end_date) <= now).length,
         dokumen: userMateri.filter(m => m.dokumenMateri && m.dokumenMateri.length > 0).length,
         lastUpdated: new Date().toISOString()
       };

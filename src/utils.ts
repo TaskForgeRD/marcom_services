@@ -5,10 +5,10 @@ export function convertToFormData(data: any): FormData {
     formData.append('brand', data.brand);
     formData.append('cluster', data.cluster);
     formData.append('fitur', data.fitur);
-    formData.append('namaMateri', data.namaMateri);
+    formData.append('nama_materi', data.nama_materi);
     formData.append('jenis', data.jenis);
-    formData.append('startDate', data.startDate);
-    formData.append('endDate', data.endDate);
+    formData.append('start_date', data.start_date);
+    formData.append('end_date', data.end_date);
     formData.append('periode', data.periode || '0');
     
     // Add dokumen materi

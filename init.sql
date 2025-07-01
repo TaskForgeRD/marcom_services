@@ -26,15 +26,27 @@ CREATE TABLE IF NOT EXISTS cluster (
   name VARCHAR(255) NOT NULL
 );
 
--- Update materi table to include user_id
+-- Create new Fitur table
+CREATE TABLE IF NOT EXISTS fitur (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(255) NOT NULL
+);
+
+-- Create new Jenis table
+CREATE TABLE IF NOT EXISTS jenis (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(255) NOT NULL
+);
+
+-- Update materi table to reference fitur and jenis tables
 CREATE TABLE IF NOT EXISTS materi (
   id INT AUTO_INCREMENT PRIMARY KEY,
   user_id INT NOT NULL,
   brand_id INT NOT NULL,
   cluster_id INT NOT NULL,
-  fitur VARCHAR(255),
+  fitur_id INT,
   nama_materi VARCHAR(255),
-  jenis VARCHAR(100),
+  jenis_id INT,
   start_date DATE,
   end_date DATE,
   periode VARCHAR(100),
@@ -42,7 +54,9 @@ CREATE TABLE IF NOT EXISTS materi (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   FOREIGN KEY (brand_id) REFERENCES brand(id),
-  FOREIGN KEY (cluster_id) REFERENCES cluster(id)
+  FOREIGN KEY (cluster_id) REFERENCES cluster(id),
+  FOREIGN KEY (fitur_id) REFERENCES fitur(id),
+  FOREIGN KEY (jenis_id) REFERENCES jenis(id)
 );
 
 CREATE TABLE IF NOT EXISTS dokumen_materi (
@@ -71,3 +85,14 @@ INSERT INTO cluster (name) VALUES
   ('Bayar-Bayar Harian'),
   ('Bayar-Bayar Bulanan'),
   ('Tagihan');
+
+-- Fitur data
+INSERT INTO fitur (name) VALUES 
+  ('Donasi'),
+  ('QRIS Source CC'),
+  ('Transfer Internasional');  
+
+-- Jenis data
+INSERT INTO jenis (name) VALUES 
+  ('Tematik'),
+  ('Tactical');

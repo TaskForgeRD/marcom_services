@@ -2,6 +2,8 @@
 import * as materiModel from '../models/materiModel';
 import * as brandService from './brandService';
 import * as clusterService from './clusterService';
+import * as fiturService from './fiturService';
+import * as jenisService from './jenisService';
 import { saveFile } from '../utils/fileUpload';
 import { validateMateriData } from '../utils/validation';
 import { Materi } from '../types';
@@ -21,32 +23,32 @@ export async function createMateri(formData: FormData, userId: number) {
       brand: formData.get('brand') as string,
       cluster: formData.get('cluster') as string,
       fitur: formData.get('fitur') as string,
-      nama_materi: formData.get('namaMateri') as string,
+      nama_materi: formData.get('nama_materi') as string,
       jenis: formData.get('jenis') as string,
-      start_date: formData.get('startDate') as string,
-      end_date: formData.get('endDate') as string,
+      start_date: formData.get('start_date') as string,
+      end_date: formData.get('end_date') as string,
       periode: formData.get('periode') as string || '0',
     };
 
-    // Get brand and cluster IDs
+    // Get brand, cluster, fitur, and jenis IDs
     const brandId = await brandService.getBrandIdByName(materiData.brand);
     const clusterId = await clusterService.getClusterIdByName(materiData.cluster);
-
-    if (!brandId || !clusterId) {
-      throw new Error('Brand atau cluster tidak ditemukan');
-    }
+    const fiturId = await fiturService.getFiturIdByName(materiData.fitur);
+    const jenisId = await jenisService.getJenisIdByName(materiData.jenis);
 
     const materi: Materi = {
       user_id: userId,
       brand_id: brandId,
       cluster_id: clusterId,
-      fitur: materiData.fitur,
+      fitur_id: fiturId,
       nama_materi: materiData.nama_materi,
-      jenis: materiData.jenis,
+      jenis_id: jenisId,
       start_date: materiData.start_date,
       end_date: materiData.end_date,
       periode: materiData.periode,
     };
+
+    
 
     // Validate data
     const validation = validateMateriData(materi);
@@ -110,16 +112,18 @@ export async function updateMateri(id: number, formData: FormData, userId: numbe
       brand: formData.get('brand') as string,
       cluster: formData.get('cluster') as string,
       fitur: formData.get('fitur') as string,
-      nama_materi: formData.get('namaMateri') as string,
+      nama_materi: formData.get('nama_materi') as string,
       jenis: formData.get('jenis') as string,
-      start_date: formData.get('startDate') as string,
-      end_date: formData.get('endDate') as string,
+      start_date: formData.get('start_date') as string,
+      end_date: formData.get('end_date') as string,
       periode: formData.get('periode') as string || '0',
     };
 
-    // Get brand and cluster IDs
+    // Get brand, cluster, fitur, and jenis IDs
     const brandId = await brandService.getBrandIdByName(materiData.brand);
     const clusterId = await clusterService.getClusterIdByName(materiData.cluster);
+    const fiturId = await fiturService.getFiturIdByName(materiData.fitur);
+    const jenisId = await jenisService.getJenisIdByName(materiData.jenis);
 
     if (!brandId || !clusterId) {
       throw new Error('Brand atau cluster tidak ditemukan');
@@ -129,9 +133,9 @@ export async function updateMateri(id: number, formData: FormData, userId: numbe
       user_id: userId,
       brand_id: brandId,
       cluster_id: clusterId,
-      fitur: materiData.fitur,
+      fitur_id: fiturId,
       nama_materi: materiData.nama_materi,
-      jenis: materiData.jenis,
+      jenis_id: jenisId,
       start_date: materiData.start_date,
       end_date: materiData.end_date,
       periode: materiData.periode,
@@ -216,7 +220,7 @@ export async function deleteMateri(id: number, userId: number) {
       throw new Error('Materi tidak ditemukan atau Anda tidak memiliki akses');
     }
 
-    await materiModel.deleteMateri(id);
+    await materiModel.deleteMateri(id, userId);
     return { success: true, message: 'Materi berhasil dihapus' };
   } catch (error) {
     console.error('Error in deleteMateri:', error);

@@ -5,6 +5,8 @@ import { errorHandler } from './middlewares/errorHandler';
 import { authController } from './controllers/authController';
 import { brandController } from './controllers/brandController';
 import { clusterController } from './controllers/clusterController';
+import { fiturController } from './controllers/fiturController';
+import { jenisController } from './controllers/jenisContoller';
 import { materiController } from './controllers/materiController';
 import { fileRoutes } from './routes/fileRoutes';
 import { setupSocketIO } from './socket/socketServer';
@@ -24,6 +26,8 @@ const app = new Elysia()
   .use(authController)
   .use(brandController)
   .use(clusterController)
+  .use(fiturController)
+  .use(jenisController)
   .use(materiController)
   .use(fileRoutes);
 
