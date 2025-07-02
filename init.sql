@@ -7,7 +7,7 @@ USE marcom;
 -- Create users table for authentication
 CREATE TABLE IF NOT EXISTS users (
   id INT AUTO_INCREMENT PRIMARY KEY,
-  google_id VARCHAR(255) UNIQUE NOT NULL,
+  google_id VARCHAR(255) UNIQUE NULL,
   email VARCHAR(255) UNIQUE NOT NULL,
   name VARCHAR(255) NOT NULL,
   avatar_url VARCHAR(500),
@@ -96,3 +96,5 @@ INSERT INTO fitur (name) VALUES
 INSERT INTO jenis (name) VALUES 
   ('Tematik'),
   ('Tactical');
+
+INSERT INTO users (email, name) VALUES  ('rama09n@gmail.com', 'Ramadhani Nur Sarjito');
