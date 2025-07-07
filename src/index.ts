@@ -12,6 +12,8 @@ import { fileRoutes } from './routes/fileRoutes';
 import { setupSocketIO } from './socket/socketServer';
 import * as fs from 'fs';
 import * as path from 'path';
+import dotenv from 'dotenv';
+dotenv.config();
 
 // Ensure uploads directory exists
 const uploadsDir = path.join(process.cwd(), 'uploads');

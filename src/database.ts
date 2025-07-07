@@ -1,4 +1,7 @@
 import mysql from 'mysql2/promise';
+import dotenv from 'dotenv';
+dotenv.config();ø
+
 
 export class Database {
   private static instance: Database;
