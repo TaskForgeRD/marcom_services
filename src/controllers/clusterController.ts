@@ -1,7 +1,6 @@
-import { Elysia } from 'elysia';
-import * as clusterService from '../services/clusterService';
+import { Elysia } from "elysia";
+import * as clusterService from "../services/clusterService";
 
-export const clusterController = new Elysia()
-  .get('/api/clusters', async () => {
-    return await clusterService.getAllClusters();
-  });
+export const clusterController = new Elysia().get("/api/clusters", async () => {
+  return await clusterService.getAllClusters();
+});

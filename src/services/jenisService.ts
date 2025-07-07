@@ -1,4 +1,4 @@
-import * as jenisModel from '../models/jenisModel';
+import * as jenisModel from "../models/jenisModel";
 
 export async function getAllJenis() {
   return await jenisModel.getAllJenis();

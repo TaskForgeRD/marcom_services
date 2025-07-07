@@ -1,4 +1,4 @@
-import * as fiturModel from '../models/fiturModel';
+import * as fiturModel from "../models/fiturModel";
 
 export async function getAllFitur() {
   return await fiturModel.getAllFitur();

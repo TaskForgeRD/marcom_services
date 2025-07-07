@@ -1,20 +1,20 @@
-import { Elysia } from 'elysia';
-import { createServer } from 'http';
-import { corsMiddleware } from './middlewares/cors';
-import { errorHandler } from './middlewares/errorHandler';
-import { authController } from './controllers/authController';
-import { brandController } from './controllers/brandController';
-import { clusterController } from './controllers/clusterController';
-import { fiturController } from './controllers/fiturController';
-import { jenisController } from './controllers/jenisContoller';
-import { materiController } from './controllers/materiController';
-import { fileRoutes } from './routes/fileRoutes';
-import { setupSocketIO } from './socket/socketServer';
-import * as fs from 'fs';
-import * as path from 'path';
+import { Elysia } from "elysia";
+import { createServer } from "http";
+import { corsMiddleware } from "./middlewares/cors";
+import { errorHandler } from "./middlewares/errorHandler";
+import { authController } from "./controllers/authController";
+import { brandController } from "./controllers/brandController";
+import { clusterController } from "./controllers/clusterController";
+import { fiturController } from "./controllers/fiturController";
+import { jenisController } from "./controllers/jenisContoller";
+import { materiController } from "./controllers/materiController";
+import { fileRoutes } from "./routes/fileRoutes";
+import { setupSocketIO } from "./socket/socketServer";
+import * as fs from "fs";
+import * as path from "path";
 
 // Ensure uploads directory exists
-const uploadsDir = path.join(process.cwd(), 'uploads');
+const uploadsDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }

@@ -1,4 +1,4 @@
-import * as brandModel from '../models/brandModel';
+import * as brandModel from "../models/brandModel";
 
 export async function getAllBrands() {
   return await brandModel.getAllBrands();

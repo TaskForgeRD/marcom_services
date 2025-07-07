@@ -1,7 +1,8 @@
-import { Elysia } from 'elysia';
-import jwt from 'jsonwebtoken';
+import { Elysia } from "elysia";
+import jwt from "jsonwebtoken";
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-this';
+const JWT_SECRET =
+  process.env.JWT_SECRET || "your-super-secret-jwt-key-change-this";
 
 interface JWTPayload {
   userId: number;
@@ -12,11 +13,13 @@ interface JWTPayload {
 export function requireAuth(handler: (ctx: any) => any) {
   return async (ctx: any) => {
     const authHeader = ctx.headers?.authorization;
-    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    const token = authHeader?.startsWith("Bearer ")
+      ? authHeader.slice(7)
+      : null;
 
     if (!token) {
       ctx.set.status = 401;
-      return { success: false, message: 'Authentication required' };
+      return { success: false, message: "Authentication required" };
     }
 
     try {
@@ -25,11 +28,11 @@ export function requireAuth(handler: (ctx: any) => any) {
       return await handler(ctx);
     } catch (err) {
       ctx.set.status = 401;
-      return { success: false, message: 'Invalid or expired token' };
+      return { success: false, message: "Invalid or expired token" };
     }
   };
 }
 
 export function generateToken(payload: JWTPayload): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: "7d" });
 }

@@ -1,5 +1,5 @@
 // models/userModel.ts
-import { pool } from '../config/database';
+import { pool } from "../config/database";
 
 export interface User {
   id?: number;
@@ -11,61 +11,71 @@ export interface User {
   updated_at?: string;
 }
 
-export async function findUserByGoogleId(googleId: string): Promise<User | null> {
-  const [rows] = await pool.query(
-    'SELECT * FROM users WHERE google_id = ?',
-    [googleId]
-  );
-  
+export async function findUserByGoogleId(
+  googleId: string
+): Promise<User | null> {
+  const [rows] = await pool.query("SELECT * FROM users WHERE google_id = ?", [
+    googleId,
+  ]);
+
   const users = rows as User[];
   return users.length > 0 ? users[0] : null;
 }
 
 export async function findUserByEmail(email: string): Promise<User | null> {
-  const [rows] = await pool.query(
-    'SELECT * FROM users WHERE email = ?',
-    [email]
-  );
-  
+  const [rows] = await pool.query("SELECT * FROM users WHERE email = ?", [
+    email,
+  ]);
+
   const users = rows as User[];
   return users.length > 0 ? users[0] : null;
 }
 
 // MODIFIED: Allow creating user with or without google_id
-export async function createUser(userData: Omit<User, 'id' | 'created_at' | 'updated_at'>): Promise<number> {
+export async function createUser(
+  userData: Omit<User, "id" | "created_at" | "updated_at">
+): Promise<number> {
   const [result] = await pool.execute(
     `INSERT INTO users (google_id, email, name, avatar_url) 
      VALUES (?, ?, ?, ?)`,
-    [userData.google_id || null, userData.email, userData.name, userData.avatar_url || null]
+    [
+      userData.google_id || null,
+      userData.email,
+      userData.name,
+      userData.avatar_url || null,
+    ]
   );
-  
+
   return (result as any).insertId;
 }
 
 // MODIFIED: Allow updating google_id and other fields
-export async function updateUser(id: number, userData: Partial<User>): Promise<void> {
+export async function updateUser(
+  id: number,
+  userData: Partial<User>
+): Promise<void> {
   const fields = [];
   const values = [];
-  
+
   if (userData.google_id !== undefined) {
-    fields.push('google_id = ?');
+    fields.push("google_id = ?");
     values.push(userData.google_id);
   }
-  
+
   if (userData.name) {
-    fields.push('name = ?');
+    fields.push("name = ?");
     values.push(userData.name);
   }
-  
+
   if (userData.avatar_url !== undefined) {
-    fields.push('avatar_url = ?');
+    fields.push("avatar_url = ?");
     values.push(userData.avatar_url);
   }
-  
+
   if (fields.length > 0) {
     values.push(id);
     await pool.execute(
-      `UPDATE users SET ${fields.join(', ')} WHERE id = ?`,
+      `UPDATE users SET ${fields.join(", ")} WHERE id = ?`,
       values
     );
   }
@@ -74,13 +84,13 @@ export async function updateUser(id: number, userData: Partial<User>): Promise<v
 // ADDED: Get all users (for admin purposes)
 export async function getAllUsers(): Promise<User[]> {
   const [rows] = await pool.query(
-    'SELECT id, email, name, avatar_url, created_at FROM users ORDER BY created_at DESC'
+    "SELECT id, email, name, avatar_url, created_at FROM users ORDER BY created_at DESC"
   );
-  
+
   return rows as User[];
 }
 
 // ADDED: Delete user by ID (for admin purposes)
 export async function deleteUser(id: number): Promise<void> {
-  await pool.execute('DELETE FROM users WHERE id = ?', [id]);
+  await pool.execute("DELETE FROM users WHERE id = ?", [id]);
 }

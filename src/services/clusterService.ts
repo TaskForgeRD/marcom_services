@@ -1,4 +1,4 @@
-import * as clusterModel from '../models/clusterModel';
+import * as clusterModel from "../models/clusterModel";
 
 export async function getAllClusters() {
   return await clusterModel.getAllClusters();

@@ -1,5 +1,5 @@
 // Backend - Stats Service (services/statsService.ts)
-import { pool } from '../config/database';
+import { pool } from "../config/database";
 
 export interface UserStats {
   userId: number;
@@ -14,7 +14,8 @@ export interface UserStats {
 
 export async function getUserStats(userId: number): Promise<UserStats> {
   try {
-    const [materiRows] = await pool.execute(`
+    const [materiRows] = await pool.execute(
+      `
       SELECT 
         COUNT(*) as total,
         SUM(CASE WHEN fitur IS NOT NULL AND fitur != '' THEN 1 ELSE 0 END) as fitur,
@@ -23,14 +24,19 @@ export async function getUserStats(userId: number): Promise<UserStats> {
         SUM(CASE WHEN end_date <= NOW() THEN 1 ELSE 0 END) as expired
       FROM materi 
       WHERE user_id = ?
-    `, [userId]);
+    `,
+      [userId]
+    );
 
-    const [dokumenRows] = await pool.execute(`
+    const [dokumenRows] = await pool.execute(
+      `
       SELECT COUNT(DISTINCT m.id) as dokumen
       FROM materi m
       INNER JOIN dokumen_materi dm ON m.id = dm.materi_id
       WHERE m.user_id = ?
-    `, [userId]);
+    `,
+      [userId]
+    );
 
     const materiStats = materiRows[0] as any;
     const dokumenStats = dokumenRows[0] as any;
@@ -43,10 +49,10 @@ export async function getUserStats(userId: number): Promise<UserStats> {
       aktif: materiStats.aktif || 0,
       expired: materiStats.expired || 0,
       dokumen: dokumenStats.dokumen || 0,
-      lastUpdated: new Date()
+      lastUpdated: new Date(),
     };
   } catch (error) {
-    console.error('Error getting user stats:', error);
+    console.error("Error getting user stats:", error);
     throw error;
   }
 }

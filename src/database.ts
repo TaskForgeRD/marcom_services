@@ -1,4 +1,4 @@
-import mysql from 'mysql2/promise';
+import mysql from "mysql2/promise";
 
 export class Database {
   private static instance: Database;
@@ -10,18 +10,18 @@ export class Database {
     }
 
     this.pool = mysql.createPool({
-      host: process.env.MYSQL_HOST || 'localhost',
+      host: process.env.MYSQL_HOST || "localhost",
       port: Number(process.env.MYSQL_PORT) || 3306,
-      user: process.env.MYSQL_USER || 'root',
-      password: process.env.MYSQL_PASSWORD || 'root_password',
-      database: process.env.MYSQL_DATABASE || 'marcom_db',
+      user: process.env.MYSQL_USER || "root",
+      password: process.env.MYSQL_PASSWORD || "root_password",
+      database: process.env.MYSQL_DATABASE || "marcom_db",
       waitForConnections: true,
       connectionLimit: 10,
-      queueLimit: 0
+      queueLimit: 0,
     });
 
     Database.instance = this;
-    console.log('Database connection pool created');
+    console.log("Database connection pool created");
   }
 
   async query<T = any>(sql: string, params?: any[]): Promise<T> {
@@ -29,7 +29,7 @@ export class Database {
       const [results] = await this.pool.query(sql, params);
       return results as T;
     } catch (error) {
-      console.error('Database query error:', error);
+      console.error("Database query error:", error);
       throw error;
     }
   }
@@ -37,7 +37,7 @@ export class Database {
   async close(): Promise<void> {
     if (this.pool) {
       await this.pool.end();
-      console.log('Database connection pool closed');
+      console.log("Database connection pool closed");
     }
   }
 
