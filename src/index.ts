@@ -13,6 +13,7 @@ import { setupSocketIO } from "./socket/socketServer";
 import * as fs from "fs";
 import * as path from "path";
 import dotenv from "dotenv";
+import { globalErrorHandler } from "./middlewares/globalErrorHandler";
 dotenv.config();
 
 // Ensure uploads directory exists
@@ -29,6 +30,7 @@ const app = new Elysia({
 })
   .use(corsMiddleware)
   .use(errorHandler)
+  .use(globalErrorHandler)
   .use(authController)
   .use(brandController)
   .use(clusterController)

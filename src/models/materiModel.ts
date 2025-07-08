@@ -1,10 +1,10 @@
-import { pool } from '../config/database';
-import { Materi, DokumenMateri } from '../types';
+import { pool } from "../config/database";
+import { Materi, DokumenMateri } from "../types";
 
 function buildMateriFromRows(rows: any[]) {
   const materiMap = new Map<number, any>();
 
-  rows.forEach(row => {
+  rows.forEach((row) => {
     if (!materiMap.has(row.id)) {
       materiMap.set(row.id, {
         id: row.id,
@@ -34,7 +34,7 @@ function buildMateriFromRows(rows: any[]) {
         linkDokumen: row.link_dokumen,
         thumbnail: row.thumbnail,
         tipeMateri: row.tipe_materi,
-        keywords: row.keywords ? row.keywords.split(',') : [],
+        keywords: row.keywords ? row.keywords.split(",") : [],
       });
     }
   });
@@ -43,7 +43,8 @@ function buildMateriFromRows(rows: any[]) {
 }
 
 export async function getAllMateriByUser(userId: number) {
-  const [rows] = await pool.query(`
+  const [rows] = await pool.query(
+    `
     SELECT 
       m.*, 
       b.name AS brand_name, 
@@ -65,13 +66,16 @@ export async function getAllMateriByUser(userId: number) {
     WHERE m.user_id = ?
     GROUP BY m.id, dm.id
     ORDER BY m.created_at DESC
-  `, [userId]);
+  `,
+    [userId]
+  );
 
   return buildMateriFromRows(rows as any[]);
 }
 
 export async function getMateriById(id: number, userId: number) {
-  const [rows] = await pool.query(`
+  const [rows] = await pool.query(
+    `
     SELECT 
       m.*, 
       b.name AS brand_name, 
@@ -92,12 +96,14 @@ export async function getMateriById(id: number, userId: number) {
     LEFT JOIN dokumen_materi_keyword dmk ON dm.id = dmk.dokumen_materi_id
     WHERE m.id = ? AND m.user_id = ?
     GROUP BY m.id, dm.id
-  `, [id, userId]);
-  
+  `,
+    [id, userId]
+  );
+
   if (!rows || (rows as any[]).length === 0) {
     return null;
   }
-  
+
   const result = buildMateriFromRows(rows as any[]);
   return result.length > 0 ? result[0] : null;
 }
@@ -108,17 +114,17 @@ export async function createMateri(materi: Materi) {
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       materi.user_id,
-      materi.brand_id, 
-      materi.cluster_id, 
+      materi.brand_id,
+      materi.cluster_id,
       materi.fitur_id,
-      materi.nama_materi, 
+      materi.nama_materi,
       materi.jenis_id,
-      materi.start_date, 
-      materi.end_date, 
-      materi.periode
+      materi.start_date,
+      materi.end_date,
+      materi.periode,
     ]
   );
-  
+
   return (result as any).insertId;
 }
 
@@ -138,25 +144,26 @@ export async function updateMateri(id: number, materi: Materi) {
       materi.end_date,
       materi.periode,
       id,
-      materi.user_id
+      materi.user_id,
     ]
   );
-  
+
   return (result as any).affectedRows > 0;
 }
 
 export async function deleteMateri(id: number, userId: number) {
   // Add user_id check for security
   const [result] = await pool.execute(
-    'DELETE FROM materi WHERE id = ? AND user_id = ?', 
+    "DELETE FROM materi WHERE id = ? AND user_id = ?",
     [id, userId]
   );
-  
+
   return (result as any).affectedRows > 0;
 }
 
 export async function getDokumenMateriByMateriId(materiId: number) {
-  const [rows] = await pool.query(`
+  const [rows] = await pool.query(
+    `
     SELECT 
       dm.*,
       GROUP_CONCAT(dmk.keyword) AS keywords
@@ -164,30 +171,37 @@ export async function getDokumenMateriByMateriId(materiId: number) {
     LEFT JOIN dokumen_materi_keyword dmk ON dm.id = dmk.dokumen_materi_id
     WHERE dm.materi_id = ?
     GROUP BY dm.id
-  `, [materiId]);
-  
-  return (rows as any[]).map(row => ({
+  `,
+    [materiId]
+  );
+
+  return (rows as any[]).map((row) => ({
     ...row,
-    keywords: row.keywords ? row.keywords.split(',') : []
+    keywords: row.keywords ? row.keywords.split(",") : [],
   }));
 }
 
 export async function getKeywordsByDokumenId(dokumenId: number) {
   const [rows] = await pool.query(
-    'SELECT keyword FROM dokumen_materi_keyword WHERE dokumen_materi_id = ?',
+    "SELECT keyword FROM dokumen_materi_keyword WHERE dokumen_materi_id = ?",
     [dokumenId]
   );
-  
-  return (rows as any[]).map(row => row.keyword);
+
+  return (rows as any[]).map((row) => row.keyword);
 }
 
 export async function createDokumenMateri(dokumen: DokumenMateri) {
   const [result] = await pool.execute(
     `INSERT INTO dokumen_materi (materi_id, link_dokumen, tipe_materi, thumbnail)
      VALUES (?, ?, ?, ?)`,
-    [dokumen.materi_id, dokumen.link_dokumen, dokumen.tipe_materi, dokumen.thumbnail]
+    [
+      dokumen.materi_id,
+      dokumen.link_dokumen,
+      dokumen.tipe_materi,
+      dokumen.thumbnail,
+    ]
   );
-  
+
   return (result as any).insertId;
 }
 
@@ -198,28 +212,31 @@ export async function createKeyword(dokumenId: number, keyword: string) {
   );
 }
 
-export async function updateDokumenKeywords(dokumenId: number, keywords: string[]) {
+export async function updateDokumenKeywords(
+  dokumenId: number,
+  keywords: string[]
+) {
   // Start transaction
   const connection = await pool.getConnection();
-  
+
   try {
     await connection.beginTransaction();
-    
+
     // Delete existing keywords
     await connection.execute(
-      'DELETE FROM dokumen_materi_keyword WHERE dokumen_materi_id = ?',
+      "DELETE FROM dokumen_materi_keyword WHERE dokumen_materi_id = ?",
       [dokumenId]
     );
-    
+
     // Insert new keywords
     if (keywords.length > 0) {
-      const values = keywords.map(keyword => [dokumenId, keyword]);
+      const values = keywords.map((keyword) => [dokumenId, keyword]);
       await connection.query(
-        'INSERT INTO dokumen_materi_keyword (dokumen_materi_id, keyword) VALUES ?',
+        "INSERT INTO dokumen_materi_keyword (dokumen_materi_id, keyword) VALUES ?",
         [values]
       );
     }
-    
+
     await connection.commit();
   } catch (error) {
     await connection.rollback();
@@ -231,39 +248,53 @@ export async function updateDokumenKeywords(dokumenId: number, keywords: string[
 
 export async function deleteDokumenKeywords(dokumenId: number) {
   await pool.execute(
-    'DELETE FROM dokumen_materi_keyword WHERE dokumen_materi_id = ?',
+    "DELETE FROM dokumen_materi_keyword WHERE dokumen_materi_id = ?",
     [dokumenId]
   );
 }
 
 export async function deleteDokumenByMateriId(materiId: number) {
   // CASCADE delete will handle this automatically, but explicit is better
-  await pool.execute(`
+  await pool.execute(
+    `
     DELETE dmk FROM dokumen_materi_keyword dmk
     JOIN dokumen_materi dm ON dmk.dokumen_materi_id = dm.id
     WHERE dm.materi_id = ?
-  `, [materiId]);
-  
-  await pool.execute('DELETE FROM dokumen_materi WHERE materi_id = ?', [materiId]);
+  `,
+    [materiId]
+  );
+
+  await pool.execute("DELETE FROM dokumen_materi WHERE materi_id = ?", [
+    materiId,
+  ]);
 }
 
 // Helper functions for reference data
 export async function getAllFitur() {
-  const [rows] = await pool.query('SELECT * FROM fitur ORDER BY name');
+  const [rows] = await pool.query("SELECT * FROM fitur ORDER BY name");
   return rows as any[];
 }
 
 export async function getAllJenis() {
-  const [rows] = await pool.query('SELECT * FROM jenis ORDER BY name');
+  const [rows] = await pool.query("SELECT * FROM jenis ORDER BY name");
   return rows as any[];
 }
 
 export async function getAllBrands() {
-  const [rows] = await pool.query('SELECT * FROM brand ORDER BY name');
+  const [rows] = await pool.query("SELECT * FROM brand ORDER BY name");
   return rows as any[];
 }
 
 export async function getAllClusters() {
-  const [rows] = await pool.query('SELECT * FROM cluster ORDER BY name');
+  const [rows] = await pool.query("SELECT * FROM cluster ORDER BY name");
   return rows as any[];
+}
+
+export async function isNamaMateriExist(nama: string, userId: number) {
+  const [rows] = await pool.query(
+    "SELECT COUNT(*) as count FROM materi WHERE nama_materi = ? AND user_id = ?",
+    [nama, userId]
+  );
+
+  return (rows as any)[0].count > 0;
 }
