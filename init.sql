@@ -77,8 +77,24 @@ CREATE TABLE IF NOT EXISTS dokumen_materi_keyword (
 
 -- Insert sample data
 -- Brands
-INSERT INTO brand (name) VALUES 
-  ('BRImo');
+INSERT INTO brand (name) VALUES
+  ('Promo Merchant'),
+  ('Omni RO'),
+  ('EDC'),
+  ('Tabungan'),
+  ('Omni Promo'),
+  ('DNR'),
+  ('BRImerchant'),
+  ('Mikro'),
+  ('Agen BRILink'),
+  ('QRIS'),
+  ('Debit BRI'),
+  ('BRIZZI'),
+  ('Internasional > Remittance, Money Changer, Transaksi LN, Treasury'),
+  ('KPR'),
+  ('Briguna'),
+  ('BRI Prioritas'),
+  ('Qlola');
 
 -- Clusters
 INSERT INTO cluster (name) VALUES 
@@ -96,3 +112,4 @@ INSERT INTO fitur (name) VALUES
 INSERT INTO jenis (name) VALUES 
   ('Tematik'),
   ('Tactical');
+
