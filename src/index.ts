@@ -12,6 +12,7 @@ import { fileRoutes } from "./routes/fileRoutes";
 import { setupSocketIO } from "./socket/socketServer";
 import * as fs from "fs";
 import * as path from "path";
+console.log("Test");
 
 // Ensure uploads directory exists
 const uploadsDir = path.join(process.cwd(), "uploads");
