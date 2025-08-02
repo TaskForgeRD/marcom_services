@@ -1,6 +1,127 @@
-import { Elysia } from "elysia";
+import { Elysia, t } from "elysia";
 import * as clusterService from "../services/clusterService";
+import { requireAuth } from "../middlewares/authMiddleware";
 
-export const clusterController = new Elysia().get("/api/clusters", async () => {
-  return await clusterService.getAllClusters();
-});
+export const clusterController = new Elysia()
+  // Get all clusters
+  .get("/api/clusters", async () => {
+    return await clusterService.getAllClusters();
+  })
+
+  // Get cluster by ID
+  .get("/api/clusters/:id", async ({ params: { id }, set }) => {
+    const cluster = await clusterService.getClusterById(parseInt(id));
+    if (!cluster) {
+      set.status = 404;
+      return { success: false, message: "Cluster tidak ditemukan" };
+    }
+    return { success: true, data: cluster };
+  })
+
+  // Create new cluster - FIXED VERSION
+  .post(
+    "/api/clusters",
+    requireAuth(async ({ body, set }) => {
+      try {
+        // Safe destructuring with fallback
+        const requestBody = body || {};
+        const { name } = requestBody as { name?: string };
+
+        if (!name || !name.trim()) {
+          set.status = 400;
+          return { success: false, message: "Nama cluster harus diisi" };
+        }
+
+        const result = await clusterService.createCluster(name.trim());
+        return {
+          success: true,
+          data: result,
+          message: "Cluster berhasil ditambahkan",
+        };
+      } catch (error) {
+        console.error("Error creating cluster:", error);
+        set.status = 500;
+        return { success: false, message: "Gagal menambahkan cluster" };
+      }
+    }),
+    {
+      // Add body validation schema
+      body: t.Object({
+        name: t.String(),
+      }),
+    }
+  )
+
+  // Update cluster - FIXED VERSION
+  .put(
+    "/api/clusters/:id",
+    requireAuth(async ({ params: { id }, body, set }) => {
+      try {
+        // Safe destructuring with fallback
+        const requestBody = body || {};
+        const { name } = requestBody as { name?: string };
+
+        if (!name || !name.trim()) {
+          set.status = 400;
+          return { success: false, message: "Nama cluster harus diisi" };
+        }
+
+        const result = await clusterService.updateCluster(
+          parseInt(id),
+          name.trim()
+        );
+        if (!result) {
+          set.status = 404;
+          return { success: false, message: "Cluster tidak ditemukan" };
+        }
+
+        return { success: true, message: "Cluster berhasil diperbarui" };
+      } catch (error) {
+        console.error("Error updating cluster:", error);
+        set.status = 500;
+        return { success: false, message: "Gagal memperbarui cluster" };
+      }
+    }),
+    {
+      // Add body validation schema
+      body: t.Object({
+        name: t.String(),
+      }),
+    }
+  )
+
+  // Delete cluster
+  .delete(
+    "/api/clusters/:id",
+    requireAuth(async ({ params: { id }, set }) => {
+      try {
+        const result = await clusterService.deleteCluster(parseInt(id));
+        if (!result) {
+          set.status = 404;
+          return { success: false, message: "Cluster tidak ditemukan" };
+        }
+
+        return { success: true, message: "Cluster berhasil dihapus" };
+      } catch (error) {
+        console.error("Error deleting cluster:", error);
+        if (
+          typeof error === "object" &&
+          error !== null &&
+          "message" in error &&
+          typeof (error as { message?: unknown }).message === "string" &&
+          (error as { message: string }).message.includes(
+            "foreign key constraint"
+          )
+        ) {
+          set.status = 400;
+          return {
+            success: false,
+            message:
+              "Cluster tidak dapat dihapus karena masih digunakan dalam data materi",
+          };
+        }
+        set.status = 500;
+        return { success: false, message: "Gagal menghapus cluster" };
+      }
+    })
+  );

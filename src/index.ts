@@ -36,8 +36,8 @@ const server = createServer();
 const io = setupSocketIO(server);
 
 // Start the server
-app.listen(5000);
-server.listen(5001); // Socket.IO on different port
+app.listen(5001);
+server.listen(5002); // Socket.IO on different port
 
 console.log(`🦊 Elysia is running at localhost:5000`);
 console.log(`🔌 Socket.IO is running at localhost:5001`);
