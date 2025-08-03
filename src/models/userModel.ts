@@ -1,6 +1,9 @@
 // models/userModel.ts
 import { pool } from "../config/database";
 
+export const roles = ["superadmin", "admin"] as const;
+export type Role = (typeof roles)[number];
+
 export interface User {
   id?: number;
   google_id: string;
@@ -9,10 +12,11 @@ export interface User {
   avatar_url?: string;
   created_at?: string;
   updated_at?: string;
+  role?: Role; // Optional role field for future use
 }
 
 export async function findUserByGoogleId(
-  googleId: string
+  googleId: string,
 ): Promise<User | null> {
   const [rows] = await pool.query("SELECT * FROM users WHERE google_id = ?", [
     googleId,
@@ -33,7 +37,7 @@ export async function findUserByEmail(email: string): Promise<User | null> {
 
 // MODIFIED: Allow creating user with or without google_id
 export async function createUser(
-  userData: Omit<User, "id" | "created_at" | "updated_at">
+  userData: Omit<User, "id" | "created_at" | "updated_at">,
 ): Promise<number> {
   const [result] = await pool.execute(
     `INSERT INTO users (google_id, email, name, avatar_url) 
@@ -43,7 +47,7 @@ export async function createUser(
       userData.email,
       userData.name,
       userData.avatar_url || null,
-    ]
+    ],
   );
 
   return (result as any).insertId;
@@ -52,7 +56,7 @@ export async function createUser(
 // MODIFIED: Allow updating google_id and other fields
 export async function updateUser(
   id: number,
-  userData: Partial<User>
+  userData: Partial<User>,
 ): Promise<void> {
   const fields = [];
   const values = [];
@@ -76,7 +80,7 @@ export async function updateUser(
     values.push(id);
     await pool.execute(
       `UPDATE users SET ${fields.join(", ")} WHERE id = ?`,
-      values
+      values,
     );
   }
 }
@@ -84,7 +88,7 @@ export async function updateUser(
 // ADDED: Get all users (for admin purposes)
 export async function getAllUsers(): Promise<User[]> {
   const [rows] = await pool.query(
-    "SELECT id, email, name, avatar_url, created_at FROM users ORDER BY created_at DESC"
+    "SELECT id, email, name, avatar_url, created_at FROM users ORDER BY created_at DESC",
   );
 
   return rows as User[];

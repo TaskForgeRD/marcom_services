@@ -49,7 +49,7 @@ export const clusterController = new Elysia()
       body: t.Object({
         name: t.String(),
       }),
-    }
+    },
   )
 
   // Update cluster - FIXED VERSION
@@ -68,7 +68,7 @@ export const clusterController = new Elysia()
 
         const result = await clusterService.updateCluster(
           parseInt(id),
-          name.trim()
+          name.trim(),
         );
         if (!result) {
           set.status = 404;
@@ -87,7 +87,7 @@ export const clusterController = new Elysia()
       body: t.Object({
         name: t.String(),
       }),
-    }
+    },
   )
 
   // Delete cluster
@@ -110,7 +110,7 @@ export const clusterController = new Elysia()
           "message" in error &&
           typeof (error as { message?: unknown }).message === "string" &&
           (error as { message: string }).message.includes(
-            "foreign key constraint"
+            "foreign key constraint",
           )
         ) {
           set.status = 400;
@@ -123,5 +123,5 @@ export const clusterController = new Elysia()
         set.status = 500;
         return { success: false, message: "Gagal menghapus cluster" };
       }
-    })
+    }),
   );
