@@ -183,6 +183,8 @@ export const authController = new Elysia()
       });
 
       // User exists in database - check if google_id matches or needs to be updated
+      console.log("Checking Google ID match...");
+      console.log("Current user Google ID:", user.google_id);
       if (user.google_id !== googleUser.id) {
         console.log("Updating user Google ID and profile...");
         // Update google_id if it's different (for existing users who haven't linked Google yet)
