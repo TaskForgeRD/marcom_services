@@ -97,4 +97,5 @@ INSERT INTO jenis (name) VALUES
   ('Tematik'),
   ('Tactical');
 
-INSERT INTO users (email, name) VALUES  ('rama09n@gmail.com', 'Ramadhani Nur Sarjito');
+ALTER TABLE users
+ ADD COLUMN role ENUM('user', 'admin', 'superadmin', 'guest') NULL;
