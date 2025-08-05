@@ -9,7 +9,7 @@ export const rolesMiddleware = (allowedRoles: Role[]) =>
       set.status = 403;
       throw new Error("Forbidden: user role not defined");
     }
-    if (user.role && !allowedRoles.includes(user.role)) {
+    if (!allowedRoles.includes(user.role)) {
       set.status = 403;
       throw new Error("Access denied: insufficient role");
     }

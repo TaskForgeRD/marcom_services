@@ -1,6 +1,6 @@
 import { pool } from "../config/database";
 
-export const roles = ["superadmin", "admin"] as const;
+export const roles = ["superadmin", "admin", "guest"] as const;
 export type Role = (typeof roles)[number];
 
 export interface User {

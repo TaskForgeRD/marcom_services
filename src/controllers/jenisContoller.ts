@@ -1,13 +1,15 @@
 import { Elysia, t } from "elysia";
 import * as jenisService from "../services/jenisService";
 import { authMiddleware } from "../middlewares/authMiddleware";
+import { rolesMiddleware } from "../middlewares/rolesMiddleware";
 
-export const jenisController = new Elysia()
+export const jenisController = new Elysia({ prefix: "/api/jenis" })
   .use(authMiddleware)
-  .get("/api/jenis", async () => {
+  .use(rolesMiddleware(["superadmin", "admin"]))
+  .get("/", async () => {
     return await jenisService.getAllJenis();
   })
-  .get("/api/jenis/:id", async ({ params: { id }, set }) => {
+  .get("/:id", async ({ params: { id }, set }) => {
     const jenis = await jenisService.getJenisById(parseInt(id));
     if (!jenis) {
       set.status = 404;
@@ -16,7 +18,7 @@ export const jenisController = new Elysia()
     return { success: true, data: jenis };
   })
   .post(
-    "/api/jenis",
+    "/",
     async ({ body, set }) => {
       try {
         // Safe destructuring with fallback
@@ -47,7 +49,7 @@ export const jenisController = new Elysia()
     },
   )
   .put(
-    "/api/jenis/:id",
+    "/:id",
     async ({ params: { id }, body, set }) => {
       try {
         // Safe destructuring with fallback
@@ -81,7 +83,7 @@ export const jenisController = new Elysia()
       }),
     },
   )
-  .delete("/api/jenis/:id", async ({ params: { id }, set }) => {
+  .delete("/:id", async ({ params: { id }, set }) => {
     try {
       const result = await jenisService.deleteJenis(parseInt(id));
       if (!result) {

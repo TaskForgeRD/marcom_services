@@ -1,13 +1,15 @@
 import { Elysia, t } from "elysia";
 import * as clusterService from "../services/clusterService";
 import { authMiddleware } from "../middlewares/authMiddleware";
+import { rolesMiddleware } from "../middlewares/rolesMiddleware";
 
-export const clusterController = new Elysia()
+export const clusterController = new Elysia({ prefix: "/api/clusters" })
   .use(authMiddleware)
-  .get("/api/clusters", async () => {
+  .use(rolesMiddleware(["superadmin", "admin"]))
+  .get("/", async () => {
     return await clusterService.getAllClusters();
   })
-  .get("/api/clusters/:id", async ({ params: { id }, set }) => {
+  .get("/:id", async ({ params: { id }, set }) => {
     const cluster = await clusterService.getClusterById(parseInt(id));
     if (!cluster) {
       set.status = 404;
@@ -47,7 +49,7 @@ export const clusterController = new Elysia()
     },
   )
   .put(
-    "/api/clusters/:id",
+    "/:id",
     async ({ params: { id }, body, set }) => {
       try {
         // Safe destructuring with fallback
@@ -81,7 +83,7 @@ export const clusterController = new Elysia()
       }),
     },
   )
-  .delete("/api/clusters/:id", async ({ params: { id }, set }) => {
+  .delete("/:id", async ({ params: { id }, set }) => {
     try {
       const result = await clusterService.deleteCluster(parseInt(id));
       if (!result) {
