@@ -15,9 +15,10 @@ import { materiController } from "./controllers/materiController";
 
 import { fileRoutes } from "./routes/fileRoutes";
 import { setupSocketIO } from "./socket/socketServer";
+import { usersController } from "./controllers/userController";
 
-const SOCKET_IO_PORT = process.env.SOCKET_IO || 5001;
-const PORT = process.env.PORT || 5000;
+const SOCKET_IO_PORT = process.env.SOCKET_IO || 5002;
+const PORT = process.env.PORT || 5001;
 
 // Ensure uploads directory exists
 const uploadsDir = path.join(process.cwd(), "uploads");
@@ -34,6 +35,7 @@ const app = new Elysia()
   .use(fiturController)
   .use(jenisController)
   .use(materiController)
+  .use(usersController)
   .use(fileRoutes);
 
 // Create HTTP server and setup Socket.IO

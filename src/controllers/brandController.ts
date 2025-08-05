@@ -46,7 +46,7 @@ export const brandController = new Elysia({ prefix: "/api/brands" })
       body: t.Object({
         name: t.String(),
       }),
-    },
+    }
   )
 
   .put(
@@ -64,7 +64,7 @@ export const brandController = new Elysia({ prefix: "/api/brands" })
 
         const result = await brandService.updateBrand(
           parseInt(id),
-          name.trim(),
+          name.trim()
         );
         if (!result) {
           set.status = 404;
@@ -82,7 +82,7 @@ export const brandController = new Elysia({ prefix: "/api/brands" })
       body: t.Object({
         name: t.String(),
       }),
-    },
+    }
   )
   .delete("/:id", async ({ params: { id }, set }) => {
     try {
@@ -101,7 +101,7 @@ export const brandController = new Elysia({ prefix: "/api/brands" })
         "message" in error &&
         typeof (error as { message: unknown }).message === "string" &&
         (error as { message: string }).message.includes(
-          "foreign key constraint",
+          "foreign key constraint"
         )
       ) {
         set.status = 400;

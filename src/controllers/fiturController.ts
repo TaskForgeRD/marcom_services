@@ -6,7 +6,7 @@ import { rolesMiddleware } from "../middlewares/rolesMiddleware";
 export const fiturController = new Elysia({ prefix: "/api/fitur" })
   .use(authMiddleware)
   .use(rolesMiddleware(["superadmin", "admin"]))
-  .get("/api/fitur", async () => {
+  .get("", async () => {
     return await fiturService.getAllFitur();
   })
   .get("/:id", async ({ params: { id }, set }) => {
@@ -18,7 +18,7 @@ export const fiturController = new Elysia({ prefix: "/api/fitur" })
     return { success: true, data: fitur };
   })
   .post(
-    "/api/fitur",
+    "",
     async ({ body, set }) => {
       try {
         // Safe destructuring with fallback
@@ -46,7 +46,7 @@ export const fiturController = new Elysia({ prefix: "/api/fitur" })
       body: t.Object({
         name: t.String(),
       }),
-    },
+    }
   )
   .put(
     "/:id",
@@ -63,7 +63,7 @@ export const fiturController = new Elysia({ prefix: "/api/fitur" })
 
         const result = await fiturService.updateFitur(
           parseInt(id),
-          name.trim(),
+          name.trim()
         );
         if (!result) {
           set.status = 404;
@@ -81,7 +81,7 @@ export const fiturController = new Elysia({ prefix: "/api/fitur" })
       body: t.Object({
         name: t.String(),
       }),
-    },
+    }
   )
 
   // Delete fitur
@@ -102,7 +102,7 @@ export const fiturController = new Elysia({ prefix: "/api/fitur" })
         "message" in error &&
         typeof (error as { message: unknown }).message === "string" &&
         (error as { message: string }).message.includes(
-          "foreign key constraint",
+          "foreign key constraint"
         )
       ) {
         set.status = 400;
