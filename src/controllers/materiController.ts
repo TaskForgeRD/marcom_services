@@ -3,13 +3,15 @@ import * as materiService from "../services/materiService";
 import { authMiddleware } from "../middlewares/authMiddleware";
 import { broadcastStatsUpdate } from "../socket/socketServer";
 import { io } from "../index";
+import { rolesMiddleware } from "../middlewares/rolesMiddleware";
 
-export const materiController = new Elysia()
+export const materiController = new Elysia({ prefix: "/api/materi" })
   .use(authMiddleware)
-  .get("/api/materi", async ({ user }) => {
+  .use(rolesMiddleware(["superadmin", "admin", "guest"]))
+  .get("/", async ({ user }) => {
     return await materiService.getAllMateriByUser(user.userId);
   })
-  .get("/api/materi/:id", async ({ params: { id }, user, set }) => {
+  .get("/:id", async ({ params: { id }, user, set }) => {
     const materi = await materiService.getMateriById(parseInt(id), user.userId);
     if (!materi) {
       set.status = 404;
@@ -18,7 +20,7 @@ export const materiController = new Elysia()
     return materi;
   })
 
-  .post("/api/materi", async ({ request, user, set }) => {
+  .post("/", async ({ request, user, set }) => {
     try {
       const formData = await request.formData();
       const result = await materiService.createMateri(formData, user.userId);
@@ -40,7 +42,7 @@ export const materiController = new Elysia()
     }
   })
 
-  .put("/api/materi/:id", async ({ params: { id }, request, user, set }) => {
+  .put("/:id", async ({ params: { id }, request, user, set }) => {
     try {
       const formData = await request.formData();
       const result = await materiService.updateMateri(
@@ -66,7 +68,7 @@ export const materiController = new Elysia()
     }
   })
 
-  .delete("/api/materi/:id", async ({ params: { id }, user, set }) => {
+  .delete("/:id", async ({ params: { id }, user, set }) => {
     try {
       const result = await materiService.deleteMateri(
         parseInt(id),
@@ -89,6 +91,7 @@ export const materiController = new Elysia()
 // Add new endpoint for manual stats refresh
 export const statsController = new Elysia()
   .use(authMiddleware)
+  .use(rolesMiddleware(["superadmin", "admin", "guest"]))
   .get("/api/stats", async ({ user }) => {
     try {
       const userMateri = await materiService.getAllMateriByUser(user.userId);

@@ -3,13 +3,13 @@ import * as brandService from "../services/brandService";
 import { authMiddleware } from "../middlewares/authMiddleware";
 import { rolesMiddleware } from "../middlewares/rolesMiddleware";
 
-export const brandController = new Elysia()
+export const brandController = new Elysia({ prefix: "/api/brands" })
   .use(authMiddleware)
-  .use(rolesMiddleware(["superadmin"]))
-  .get("/api/brands", async () => {
+  .use(rolesMiddleware(["superadmin", "admin"]))
+  .get("/", async () => {
     return await brandService.getAllBrands();
   })
-  .get("/api/brands/:id", async ({ params: { id }, set }) => {
+  .get("/:id", async ({ params: { id }, set, user }) => {
     const brand = await brandService.getBrandById(parseInt(id));
     if (!brand) {
       set.status = 404;
@@ -18,7 +18,7 @@ export const brandController = new Elysia()
     return { success: true, data: brand };
   })
   .post(
-    "/api/brands",
+    "/",
     async ({ body, set }) => {
       try {
         // Safe destructuring with fallback
@@ -50,7 +50,7 @@ export const brandController = new Elysia()
   )
 
   .put(
-    "/api/brands/:id",
+    "/:id",
     async ({ params: { id }, body, set }) => {
       try {
         // Safe destructuring with fallback
@@ -84,7 +84,7 @@ export const brandController = new Elysia()
       }),
     },
   )
-  .delete("/api/brands/:id", async ({ params: { id }, set }) => {
+  .delete("/:id", async ({ params: { id }, set }) => {
     try {
       const result = await brandService.deleteBrand(parseInt(id));
       if (!result) {

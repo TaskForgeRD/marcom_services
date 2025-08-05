@@ -1,13 +1,15 @@
 import { Elysia, t } from "elysia";
 import * as fiturService from "../services/fiturService";
 import { authMiddleware } from "../middlewares/authMiddleware";
+import { rolesMiddleware } from "../middlewares/rolesMiddleware";
 
-export const fiturController = new Elysia()
+export const fiturController = new Elysia({ prefix: "/api/fitur" })
   .use(authMiddleware)
+  .use(rolesMiddleware(["superadmin", "admin"]))
   .get("/api/fitur", async () => {
     return await fiturService.getAllFitur();
   })
-  .get("/api/fitur/:id", async ({ params: { id }, set }) => {
+  .get("/:id", async ({ params: { id }, set }) => {
     const fitur = await fiturService.getFiturById(parseInt(id));
     if (!fitur) {
       set.status = 404;
@@ -47,7 +49,7 @@ export const fiturController = new Elysia()
     },
   )
   .put(
-    "/api/fitur/:id",
+    "/:id",
     async ({ params: { id }, body, set }) => {
       try {
         // Safe destructuring with fallback
@@ -83,7 +85,7 @@ export const fiturController = new Elysia()
   )
 
   // Delete fitur
-  .delete("/api/fitur/:id", async ({ params: { id }, set }) => {
+  .delete("/:id", async ({ params: { id }, set }) => {
     try {
       const result = await fiturService.deleteFitur(parseInt(id));
       if (!result) {
