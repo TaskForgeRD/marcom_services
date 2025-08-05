@@ -1,4 +1,5 @@
 import jwt from "jsonwebtoken";
+import { Role } from "../models/userModel";
 
 const JWT_SECRET =
   process.env.JWT_SECRET || "your-super-secret-jwt-key-change-this";
@@ -7,6 +8,7 @@ interface JWTPayload {
   userId: number;
   email: string;
   name: string;
+  role?: Role;
 }
 
 export function requireAuth(handler: (ctx: any) => any) {

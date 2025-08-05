@@ -1,6 +1,7 @@
 import { Elysia, t } from "elysia";
 import * as brandService from "../services/brandService";
 import { requireAuth } from "../middlewares/authMiddleware";
+import { rolesMiddleware } from "../middlewares/rolesMiddleware";
 
 export const brandController = new Elysia()
   // Get all brands
@@ -21,35 +22,37 @@ export const brandController = new Elysia()
   // Create new brand - FIXED VERSION
   .post(
     "/api/brands",
-    requireAuth(async ({ body, set }) => {
-      try {
-        // Safe destructuring with fallback
-        const requestBody = body || {};
-        const { name } = requestBody as { name?: string };
+    requireAuth(
+      rolesMiddleware(["admin", "superadmin"], async ({ body, set }) => {
+        try {
+          // Safe destructuring with fallback
+          const requestBody = body || {};
+          const { name } = requestBody as { name?: string };
 
-        if (!name || !name.trim()) {
-          set.status = 400;
-          return { success: false, message: "Nama brand harus diisi" };
+          if (!name || !name.trim()) {
+            set.status = 400;
+            return { success: false, message: "Nama brand harus diisi" };
+          }
+
+          const result = await brandService.createBrand(name.trim());
+          return {
+            success: true,
+            data: result,
+            message: "Brand berhasil ditambahkan",
+          };
+        } catch (error) {
+          console.error("Error creating brand:", error);
+          set.status = 500;
+          return { success: false, message: "Gagal menambahkan brand" };
         }
-
-        const result = await brandService.createBrand(name.trim());
-        return {
-          success: true,
-          data: result,
-          message: "Brand berhasil ditambahkan",
-        };
-      } catch (error) {
-        console.error("Error creating brand:", error);
-        set.status = 500;
-        return { success: false, message: "Gagal menambahkan brand" };
-      }
-    }),
+      }),
+    ),
     {
       // Add body validation schema
       body: t.Object({
         name: t.String(),
       }),
-    }
+    },
   )
 
   // Update brand - FIXED VERSION
@@ -68,7 +71,7 @@ export const brandController = new Elysia()
 
         const result = await brandService.updateBrand(
           parseInt(id),
-          name.trim()
+          name.trim(),
         );
         if (!result) {
           set.status = 404;
@@ -87,7 +90,7 @@ export const brandController = new Elysia()
       body: t.Object({
         name: t.String(),
       }),
-    }
+    },
   )
 
   // Delete brand
@@ -110,7 +113,7 @@ export const brandController = new Elysia()
           "message" in error &&
           typeof (error as { message: unknown }).message === "string" &&
           (error as { message: string }).message.includes(
-            "foreign key constraint"
+            "foreign key constraint",
           )
         ) {
           set.status = 400;
@@ -123,5 +126,5 @@ export const brandController = new Elysia()
         set.status = 500;
         return { success: false, message: "Gagal menghapus brand" };
       }
-    })
+    }),
   );

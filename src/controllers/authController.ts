@@ -14,7 +14,7 @@ export const authController = new Elysia()
   // Google OAuth login URL
   .get("/api/auth/google", () => {
     const googleAuthUrl = new URL(
-      "https://accounts.google.com/o/oauth2/v2/auth"
+      "https://accounts.google.com/o/oauth2/v2/auth",
     );
     googleAuthUrl.searchParams.set("client_id", GOOGLE_CLIENT_ID);
     googleAuthUrl.searchParams.set("redirect_uri", REDIRECT_URI);
@@ -37,7 +37,7 @@ export const authController = new Elysia()
 
       console.log(
         "Google OAuth callback started with code:",
-        code.substring(0, 20) + "..."
+        code.substring(0, 20) + "...",
       );
 
       // Exchange code for access token
@@ -123,7 +123,7 @@ export const authController = new Elysia()
             Authorization: `Bearer ${tokenData.access_token}`,
             Accept: "application/json",
           },
-        }
+        },
       );
 
       if (!userResponse.ok) {
@@ -208,6 +208,7 @@ export const authController = new Elysia()
         userId: user.id!,
         email: user.email,
         name: user.name,
+        role: user.role,
       });
 
       const response = {
@@ -218,6 +219,7 @@ export const authController = new Elysia()
           email: user.email,
           name: user.name,
           avatar_url: googleUser.picture || user.avatar_url, // Use updated avatar from Google
+          role: user.role,
         },
       };
 
@@ -265,8 +267,9 @@ export const authController = new Elysia()
       return {
         success: true,
         user,
+        role: user.role,
       };
-    })
+    }),
   )
 
   // Logout
@@ -318,5 +321,5 @@ export const authController = new Elysia()
         set.status = 500;
         return { success: false, message: "Failed to add user" };
       }
-    })
+    }),
   );
