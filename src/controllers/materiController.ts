@@ -48,7 +48,7 @@ export const materiController = new Elysia({ prefix: "/api/materi" })
       const result = await materiService.updateMateri(
         parseInt(id),
         formData,
-        user.userId,
+        user.userId
       );
 
       // Broadcast stats update to user
@@ -72,7 +72,7 @@ export const materiController = new Elysia({ prefix: "/api/materi" })
     try {
       const result = await materiService.deleteMateri(
         parseInt(id),
-        user.userId,
+        user.userId
       );
 
       // Broadcast stats update to user
@@ -101,12 +101,12 @@ export const statsController = new Elysia()
         total: userMateri.length,
         fitur: userMateri.filter((m) => m.fitur && m.fitur.trim()).length,
         komunikasi: userMateri.filter(
-          (m) => m.nama_materi && m.nama_materi.trim(),
+          (m) => m.nama_materi && m.nama_materi.trim()
         ).length,
         aktif: userMateri.filter((m) => new Date(m.end_date) > now).length,
         expired: userMateri.filter((m) => new Date(m.end_date) <= now).length,
         dokumen: userMateri.filter(
-          (m) => m.dokumenMateri && m.dokumenMateri.length > 0,
+          (m) => m.dokumenMateri && m.dokumenMateri.length > 0
         ).length,
         lastUpdated: new Date().toISOString(),
       };

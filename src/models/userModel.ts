@@ -11,11 +11,11 @@ export interface User {
   avatar_url?: string;
   created_at?: string;
   updated_at?: string;
-  role?: Role; // Optional role field for future use
+  role?: Role;
 }
 
 export async function findUserByGoogleId(
-  googleId: string,
+  googleId: string
 ): Promise<User | null> {
   const [rows] = await pool.query("SELECT * FROM users WHERE google_id = ?", [
     googleId,
@@ -41,72 +41,110 @@ export async function findUserByEmail(email: string): Promise<User | null> {
   return users.length > 0 ? users[0] : null;
 }
 
-// MODIFIED: Allow creating user with or without google_id
+// FIXED: Perbaiki query dan parameter yang sesuai dengan jumlah kolom
 export async function createUser(
-  userData: Omit<User, "id" | "created_at" | "updated_at">,
+  userData: Omit<User, "id" | "created_at" | "updated_at">
 ): Promise<number> {
-  const [result] = await pool.execute(
-    `INSERT INTO users (google_id, email, name, avatar_url) 
-     VALUES (?, ?, ?, ?)`,
-    [
-      userData.google_id || null,
-      userData.email,
-      userData.name,
-      userData.avatar_url || null,
-      userData.role,
-    ],
-  );
+  try {
+    // Query dengan 5 kolom tetapi parameter hanya 4 - INI MASALAHNYA!
+    // Perbaiki dengan menambahkan parameter role atau menghapus dari query
+    const [result] = await pool.execute(
+      `INSERT INTO users (google_id, email, name, avatar_url, role) 
+       VALUES (?, ?, ?, ?, ?)`,
+      [
+        userData.google_id || null,
+        userData.email,
+        userData.name,
+        userData.avatar_url || null,
+        userData.role || "guest", // Tambahkan parameter role yang hilang
+      ]
+    );
 
-  return (result as any).insertId;
+    return (result as any).insertId;
+  } catch (error) {
+    console.error("Error creating user:", error);
+    console.error("User data:", userData);
+    throw error;
+  }
 }
 
-// MODIFIED: Allow updating google_id and other fields
+// ENHANCED: Perbaiki fungsi update dengan error handling yang lebih baik
 export async function updateUser(
   id: number,
-  userData: Partial<User>,
-): Promise<void> {
-  const fields = [];
-  const values = [];
+  userData: Partial<User>
+): Promise<User | null> {
+  try {
+    const fields = [];
+    const values = [];
 
-  if (userData.google_id !== undefined) {
-    fields.push("google_id = ?");
-    values.push(userData.google_id);
-  }
+    if (userData.google_id !== undefined) {
+      fields.push("google_id = ?");
+      values.push(userData.google_id);
+    }
 
-  if (userData.name) {
-    fields.push("name = ?");
-    values.push(userData.name);
-  }
+    if (userData.email) {
+      fields.push("email = ?");
+      values.push(userData.email);
+    }
 
-  if (userData.avatar_url !== undefined) {
-    fields.push("avatar_url = ?");
-    values.push(userData.avatar_url);
-  }
+    if (userData.name) {
+      fields.push("name = ?");
+      values.push(userData.name);
+    }
 
-  if (userData.role !== undefined) {
-    fields.push("role = ?");
-    values.push(userData.role);
-  }
+    if (userData.avatar_url !== undefined) {
+      fields.push("avatar_url = ?");
+      values.push(userData.avatar_url);
+    }
 
-  if (fields.length > 0) {
-    values.push(id);
-    await pool.execute(
-      `UPDATE users SET ${fields.join(", ")} WHERE id = ?`,
-      values,
-    );
+    if (userData.role !== undefined) {
+      fields.push("role = ?");
+      values.push(userData.role);
+    }
+
+    if (fields.length > 0) {
+      fields.push("updated_at = NOW()");
+      values.push(id);
+
+      await pool.execute(
+        `UPDATE users SET ${fields.join(", ")} WHERE id = ?`,
+        values
+      );
+    }
+
+    // Return updated user
+    return await getUserById(id);
+  } catch (error) {
+    console.error("Error updating user:", error);
+    console.error("Update data:", userData);
+    throw error;
   }
 }
 
-// ADDED: Get all users (for admin purposes)
+// ENHANCED: Perbaiki query dengan include role
 export async function getAllUsers(): Promise<User[]> {
-  const [rows] = await pool.query(
-    "SELECT id, email, name, avatar_url, created_at FROM users ORDER BY created_at DESC",
-  );
+  try {
+    const [rows] = await pool.query(
+      "SELECT id, google_id, email, name, avatar_url, role, created_at, updated_at FROM users ORDER BY created_at DESC"
+    );
 
-  return rows as User[];
+    return rows as User[];
+  } catch (error) {
+    console.error("Error fetching all users:", error);
+    throw error;
+  }
 }
 
-// ADDED: Delete user by ID (for admin purposes)
+// ENHANCED: Delete user dengan error handling
 export async function deleteUser(id: number): Promise<void> {
-  await pool.execute("DELETE FROM users WHERE id = ?", [id]);
+  try {
+    const [result] = await pool.execute("DELETE FROM users WHERE id = ?", [id]);
+
+    if ((result as any).affectedRows === 0) {
+      throw new Error("User not found or already deleted");
+    }
+  } catch (error) {
+    console.error("Error deleting user:", error);
+    throw error;
+  }
 }
