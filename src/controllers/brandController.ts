@@ -1,15 +1,14 @@
 import { Elysia, t } from "elysia";
 import * as brandService from "../services/brandService";
-import { requireAuth } from "../middlewares/authMiddleware";
+import { authMiddleware } from "../middlewares/authMiddleware";
 import { rolesMiddleware } from "../middlewares/rolesMiddleware";
 
 export const brandController = new Elysia()
-  // Get all brands
+  .use(authMiddleware)
+  .use(rolesMiddleware(["superadmin"]))
   .get("/api/brands", async () => {
     return await brandService.getAllBrands();
   })
-
-  // Get brand by ID
   .get("/api/brands/:id", async ({ params: { id }, set }) => {
     const brand = await brandService.getBrandById(parseInt(id));
     if (!brand) {
@@ -18,47 +17,41 @@ export const brandController = new Elysia()
     }
     return { success: true, data: brand };
   })
-
-  // Create new brand - FIXED VERSION
   .post(
     "/api/brands",
-    requireAuth(
-      rolesMiddleware(["admin", "superadmin"], async ({ body, set }) => {
-        try {
-          // Safe destructuring with fallback
-          const requestBody = body || {};
-          const { name } = requestBody as { name?: string };
+    async ({ body, set }) => {
+      try {
+        // Safe destructuring with fallback
+        const requestBody = body || {};
+        const { name } = requestBody as { name?: string };
 
-          if (!name || !name.trim()) {
-            set.status = 400;
-            return { success: false, message: "Nama brand harus diisi" };
-          }
-
-          const result = await brandService.createBrand(name.trim());
-          return {
-            success: true,
-            data: result,
-            message: "Brand berhasil ditambahkan",
-          };
-        } catch (error) {
-          console.error("Error creating brand:", error);
-          set.status = 500;
-          return { success: false, message: "Gagal menambahkan brand" };
+        if (!name || !name.trim()) {
+          set.status = 400;
+          return { success: false, message: "Nama brand harus diisi" };
         }
-      }),
-    ),
+
+        const result = await brandService.createBrand(name.trim());
+        return {
+          success: true,
+          data: result,
+          message: "Brand berhasil ditambahkan",
+        };
+      } catch (error) {
+        console.error("Error creating brand:", error);
+        set.status = 500;
+        return { success: false, message: "Gagal menambahkan brand" };
+      }
+    },
     {
-      // Add body validation schema
       body: t.Object({
         name: t.String(),
       }),
     },
   )
 
-  // Update brand - FIXED VERSION
   .put(
     "/api/brands/:id",
-    requireAuth(async ({ params: { id }, body, set }) => {
+    async ({ params: { id }, body, set }) => {
       try {
         // Safe destructuring with fallback
         const requestBody = body || {};
@@ -84,47 +77,41 @@ export const brandController = new Elysia()
         set.status = 500;
         return { success: false, message: "Gagal memperbarui brand" };
       }
-    }),
+    },
     {
-      // Add body validation schema
       body: t.Object({
         name: t.String(),
       }),
     },
   )
-
-  // Delete brand
-  .delete(
-    "/api/brands/:id",
-    requireAuth(async ({ params: { id }, set }) => {
-      try {
-        const result = await brandService.deleteBrand(parseInt(id));
-        if (!result) {
-          set.status = 404;
-          return { success: false, message: "Brand tidak ditemukan" };
-        }
-
-        return { success: true, message: "Brand berhasil dihapus" };
-      } catch (error) {
-        console.error("Error deleting brand:", error);
-        if (
-          typeof error === "object" &&
-          error !== null &&
-          "message" in error &&
-          typeof (error as { message: unknown }).message === "string" &&
-          (error as { message: string }).message.includes(
-            "foreign key constraint",
-          )
-        ) {
-          set.status = 400;
-          return {
-            success: false,
-            message:
-              "Brand tidak dapat dihapus karena masih digunakan dalam data materi",
-          };
-        }
-        set.status = 500;
-        return { success: false, message: "Gagal menghapus brand" };
+  .delete("/api/brands/:id", async ({ params: { id }, set }) => {
+    try {
+      const result = await brandService.deleteBrand(parseInt(id));
+      if (!result) {
+        set.status = 404;
+        return { success: false, message: "Brand tidak ditemukan" };
       }
-    }),
-  );
+
+      return { success: true, message: "Brand berhasil dihapus" };
+    } catch (error) {
+      console.error("Error deleting brand:", error);
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "message" in error &&
+        typeof (error as { message: unknown }).message === "string" &&
+        (error as { message: string }).message.includes(
+          "foreign key constraint",
+        )
+      ) {
+        set.status = 400;
+        return {
+          success: false,
+          message:
+            "Brand tidak dapat dihapus karena masih digunakan dalam data materi",
+        };
+      }
+      set.status = 500;
+      return { success: false, message: "Gagal menghapus brand" };
+    }
+  });

@@ -8,10 +8,12 @@
   },
   "dependencies": {
     "elysia": "^1.2.25",
+    "jsonwebtoken": "^9.0.2",
     "mysql2": "^3.14.1",
     "socket.io": "^4.8.1"
   },
   "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^22.15.2",
     "bun-types": "latest"
   },

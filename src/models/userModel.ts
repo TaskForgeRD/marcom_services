@@ -1,4 +1,3 @@
-// models/userModel.ts
 import { pool } from "../config/database";
 
 export const roles = ["superadmin", "admin"] as const;
@@ -21,6 +20,13 @@ export async function findUserByGoogleId(
   const [rows] = await pool.query("SELECT * FROM users WHERE google_id = ?", [
     googleId,
   ]);
+
+  const users = rows as User[];
+  return users.length > 0 ? users[0] : null;
+}
+
+export async function getUserById(id: number): Promise<User | null> {
+  const [rows] = await pool.query("SELECT * FROM users WHERE id = ?", [id]);
 
   const users = rows as User[];
   return users.length > 0 ? users[0] : null;
@@ -74,6 +80,11 @@ export async function updateUser(
   if (userData.avatar_url !== undefined) {
     fields.push("avatar_url = ?");
     values.push(userData.avatar_url);
+  }
+
+  if (userData.role !== undefined) {
+    fields.push("role = ?");
+    values.push(userData.role);
   }
 
   if (fields.length > 0) {
