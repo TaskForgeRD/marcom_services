@@ -1,8 +1,8 @@
 import jwt from "jsonwebtoken";
+import { Elysia } from "elysia";
 import { Role } from "../models/userModel";
 
-const JWT_SECRET =
-  process.env.JWT_SECRET || "your-super-secret-jwt-key-change-this";
+const JWT_SECRET = process.env.JWT_SECRET || "";
 
 interface JWTPayload {
   userId: number;
@@ -11,28 +11,27 @@ interface JWTPayload {
   role?: Role;
 }
 
-export function requireAuth(handler: (ctx: any) => any) {
-  return async (ctx: any) => {
-    const authHeader = ctx.headers?.authorization;
+export const authMiddleware = new Elysia()
+  .decorate("user", {} as JWTPayload)
+  .derive(({ headers, set }) => {
+    const authHeader = headers?.authorization;
     const token = authHeader?.startsWith("Bearer ")
       ? authHeader.slice(7)
       : null;
 
     if (!token) {
-      ctx.set.status = 401;
-      return { success: false, message: "Authentication required" };
+      set.status = 401;
+      throw new Error("Authentication required");
     }
 
     try {
       const decoded = jwt.verify(token, JWT_SECRET) as JWTPayload;
-      ctx.user = decoded;
-      return await handler(ctx);
-    } catch (err) {
-      ctx.set.status = 401;
-      return { success: false, message: "Invalid or expired token" };
+      return { user: decoded };
+    } catch {
+      set.status = 401;
+      throw new Error("Invalid or expired token");
     }
-  };
-}
+  });
 
 export function generateToken(payload: JWTPayload): string {
   return jwt.sign(payload, JWT_SECRET, { expiresIn: "7d" });

@@ -1,5 +1,5 @@
 import { Elysia } from "elysia";
-import { generateToken, requireAuth } from "../middlewares/authMiddleware";
+import { authMiddleware, generateToken } from "../middlewares/authMiddleware";
 import * as userModel from "../models/userModel";
 
 const GOOGLE_CLIENT_ID =
@@ -9,10 +9,9 @@ const GOOGLE_CLIENT_SECRET =
 const REDIRECT_URI =
   process.env.GOOGLE_REDIRECT_URI || "http://localhost:3000/login";
 
-export const authController = new Elysia()
-
-  // Google OAuth login URL
-  .get("/api/auth/google", () => {
+export const authController = new Elysia({ prefix: "/api/auth" })
+  .get("/google", () => {
+    console.log("Google OAuth login initiated");
     const googleAuthUrl = new URL(
       "https://accounts.google.com/o/oauth2/v2/auth",
     );
@@ -24,9 +23,7 @@ export const authController = new Elysia()
 
     return { url: googleAuthUrl.toString() };
   })
-
-  // Google OAuth callback
-  .post("/api/auth/google/callback", async ({ body, set }) => {
+  .post("/google/callback", async ({ body, set }) => {
     try {
       const { code } = body as { code: string };
 
@@ -259,67 +256,16 @@ export const authController = new Elysia()
       };
     }
   })
-
-  // Get current user
-  .get(
-    "/api/auth/me",
-    requireAuth(({ user }) => {
-      return {
-        success: true,
-        user,
-        role: user.role,
-      };
-    }),
-  )
-
-  // Logout
-  .post("/api/auth/logout", () => {
-    return { success: true, message: "Logged out successfully" };
+  // order matters
+  // protected routes
+  .use(authMiddleware)
+  .get("/me", ({ user }) => {
+    return {
+      success: true,
+      user,
+      role: user.role,
+    };
   })
-
-  // Admin endpoint to add new users
-  .post(
-    "/api/auth/admin/add-user",
-    requireAuth(async ({ body, set, user }) => {
-      try {
-        const { email, name } = body as { email: string; name: string };
-
-        if (!email || !name) {
-          set.status = 400;
-          return { success: false, message: "Email and name are required" };
-        }
-
-        // Check if user already exists
-        const existingUser = await userModel.findUserByEmail(email);
-        if (existingUser) {
-          set.status = 400;
-          return {
-            success: false,
-            message: "User with this email already exists",
-          };
-        }
-
-        // Create new user without google_id (will be set when they login)
-        const userId = await userModel.createUser({
-          google_id: "", // Will be set when user logs in with Google
-          email,
-          name,
-          avatar_url: "",
-        });
-
-        return {
-          success: true,
-          message: "User added successfully",
-          user: {
-            id: userId,
-            email,
-            name,
-          },
-        };
-      } catch (error) {
-        console.error("Add user error:", error);
-        set.status = 500;
-        return { success: false, message: "Failed to add user" };
-      }
-    }),
-  );
+  .post("/logout", () => {
+    return { success: true, message: "Logged out successfully" };
+  });

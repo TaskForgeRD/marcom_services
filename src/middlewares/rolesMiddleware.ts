@@ -1,30 +1,17 @@
-// this is  middleware roles need to check per module
-//
+import { Elysia } from "elysia";
 
 import { Role } from "../models/userModel";
+import { authMiddleware } from "./authMiddleware";
 
-// any role?
-// role allowed
-export function rolesMiddleware(
-  allowedRoles: Role[] = [],
-  nextHandler: (ctx: any) => any,
-) {
-  return async (ctx: any) => {
-    const user = ctx.user;
-
-    if (!user || !user.role) {
-      ctx.set.status = 403;
-      return { success: false, message: "Access denied" };
+export const rolesMiddleware = (allowedRoles: Role[]) =>
+  new Elysia().use(authMiddleware).derive(({ set, user }) => {
+    if (!user.role) {
+      set.status = 403;
+      throw new Error("Forbidden: user role not defined");
     }
-
-    if (allowedRoles.length === 0 || allowedRoles.includes(user.role)) {
-      return await nextHandler(ctx);
-    } else {
-      ctx.set.status = 403;
-      return {
-        success: false,
-        message: "You do not have permission to access this resource",
-      };
+    if (user.role && !allowedRoles.includes(user.role)) {
+      set.status = 403;
+      throw new Error("Access denied: insufficient role");
     }
-  };
-}
+    return {};
+  });
