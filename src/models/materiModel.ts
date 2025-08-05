@@ -1,5 +1,5 @@
 import { pool } from "../config/database";
-import { Materi, DokumenMateri } from "../types";
+import { Materi, DokumenMateri } from "../types/";
 
 function buildMateriFromRows(rows: any[]) {
   const materiMap = new Map<number, any>();

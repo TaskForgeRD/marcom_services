@@ -6,7 +6,7 @@ import * as fiturService from "./fiturService";
 import * as jenisService from "./jenisService";
 import { saveFile } from "../utils/fileUpload";
 import { validateMateriData } from "../utils/validation";
-import { Materi } from "../types";
+import { Materi } from "../types/";
 
 export async function getAllMateriByUser(userId: number) {
   return await materiModel.getAllMateriByUser(userId);
@@ -33,7 +33,7 @@ export async function createMateri(formData: FormData, userId: number) {
     // Get brand, cluster, fitur, and jenis IDs
     const brandId = await brandService.getBrandIdByName(materiData.brand);
     const clusterId = await clusterService.getClusterIdByName(
-      materiData.cluster,
+      materiData.cluster
     );
     const fiturId = await fiturService.getFiturIdByName(materiData.fitur);
     const jenisId = await jenisService.getJenisIdByName(materiData.jenis);
@@ -61,21 +61,21 @@ export async function createMateri(formData: FormData, userId: number) {
 
     // Handle dokumen materi
     const dokumenCount = parseInt(
-      (formData.get("dokumenMateriCount") as string) || "0",
+      (formData.get("dokumenMateriCount") as string) || "0"
     );
 
     for (let i = 0; i < dokumenCount; i++) {
       const linkDokumen = formData.get(
-        `dokumenMateri[${i}][linkDokumen]`,
+        `dokumenMateri[${i}][linkDokumen]`
       ) as string;
       const tipeMateri = formData.get(
-        `dokumenMateri[${i}][tipeMateri]`,
+        `dokumenMateri[${i}][tipeMateri]`
       ) as string;
       const thumbnailFile = formData.get(
-        `dokumenMateri[${i}][thumbnail]`,
+        `dokumenMateri[${i}][thumbnail]`
       ) as File;
       const keywords = JSON.parse(
-        (formData.get(`dokumenMateri[${i}][keywords]`) as string) || "[]",
+        (formData.get(`dokumenMateri[${i}][keywords]`) as string) || "[]"
       );
 
       if (linkDokumen || thumbnailFile) {
@@ -112,7 +112,7 @@ export async function createMateri(formData: FormData, userId: number) {
 export async function updateMateri(
   id: number,
   formData: FormData,
-  userId: number,
+  userId: number
 ) {
   try {
     // Check if materi belongs to user
@@ -136,7 +136,7 @@ export async function updateMateri(
     // Get brand, cluster, fitur, and jenis IDs
     const brandId = await brandService.getBrandIdByName(materiData.brand);
     const clusterId = await clusterService.getClusterIdByName(
-      materiData.cluster,
+      materiData.cluster
     );
     const fiturId = await fiturService.getFiturIdByName(materiData.fitur);
     const jenisId = await jenisService.getJenisIdByName(materiData.jenis);
@@ -174,26 +174,26 @@ export async function updateMateri(
 
     // Handle new dokumen materi
     const dokumenCount = parseInt(
-      (formData.get("dokumenMateriCount") as string) || "0",
+      (formData.get("dokumenMateriCount") as string) || "0"
     );
 
     for (let i = 0; i < dokumenCount; i++) {
       const linkDokumen = formData.get(
-        `dokumenMateri[${i}][linkDokumen]`,
+        `dokumenMateri[${i}][linkDokumen]`
       ) as string;
       const tipeMateri = formData.get(
-        `dokumenMateri[${i}][tipeMateri]`,
+        `dokumenMateri[${i}][tipeMateri]`
       ) as string;
       const thumbnailFile = formData.get(
-        `dokumenMateri[${i}][thumbnail]`,
+        `dokumenMateri[${i}][thumbnail]`
       ) as File;
       const keywords = JSON.parse(
-        (formData.get(`dokumenMateri[${i}][keywords]`) as string) || "[]",
+        (formData.get(`dokumenMateri[${i}][keywords]`) as string) || "[]"
       );
 
       // Get existing thumbnail path from form data or find matching existing document
       const existingThumbnailPath = formData.get(
-        `dokumenMateri[${i}][existingThumbnail]`,
+        `dokumenMateri[${i}][existingThumbnail]`
       ) as string;
 
       if (linkDokumen || thumbnailFile || existingThumbnailPath) {
@@ -209,7 +209,7 @@ export async function updateMateri(
           // Try to match with existing document by link or index
           const existingDoc = existingDokumens.find(
             (doc: any, index: number) =>
-              doc.link_dokumen === linkDokumen || index === i,
+              doc.link_dokumen === linkDokumen || index === i
           );
           if (existingDoc && existingDoc.thumbnail) {
             thumbnailPath = existingDoc.thumbnail;

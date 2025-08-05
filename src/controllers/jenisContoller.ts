@@ -46,7 +46,7 @@ export const jenisController = new Elysia({ prefix: "/api/jenis" })
       body: t.Object({
         name: t.String(),
       }),
-    },
+    }
   )
   .put(
     "/:id",
@@ -63,7 +63,7 @@ export const jenisController = new Elysia({ prefix: "/api/jenis" })
 
         const result = await jenisService.updateJenis(
           parseInt(id),
-          name.trim(),
+          name.trim()
         );
         if (!result) {
           set.status = 404;
@@ -81,7 +81,7 @@ export const jenisController = new Elysia({ prefix: "/api/jenis" })
       body: t.Object({
         name: t.String(),
       }),
-    },
+    }
   )
   .delete("/:id", async ({ params: { id }, set }) => {
     try {
@@ -100,7 +100,7 @@ export const jenisController = new Elysia({ prefix: "/api/jenis" })
         "message" in error &&
         typeof (error as { message: unknown }).message === "string" &&
         (error as { message: string }).message.includes(
-          "foreign key constraint",
+          "foreign key constraint"
         )
       ) {
         set.status = 400;
