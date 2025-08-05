@@ -58,11 +58,11 @@ export const usersController = new Elysia({ prefix: "/api/users" })
   })
   .put("/:id", async ({ params: { id }, body, set }) => {
     try {
-      const { email, name, avatar_url } = body as {
+      const { email, name, avatar_url, role } = body as {
         email?: string;
         name?: string;
         avatar_url?: string;
-        role?: string;
+        role?: userModel.Role;
       };
 
       if (!email && !name && !avatar_url) {
@@ -74,6 +74,7 @@ export const usersController = new Elysia({ prefix: "/api/users" })
         email,
         name,
         avatar_url,
+        role,
       });
 
       return {
@@ -89,7 +90,11 @@ export const usersController = new Elysia({ prefix: "/api/users" })
   })
   .post("/", async ({ body, set }) => {
     try {
-      const { email, name } = body as { email: string; name: string };
+      const { email, name, role } = body as {
+        email: string;
+        name: string;
+        role: userModel.Role;
+      };
 
       if (!email || !name) {
         set.status = 400;
@@ -111,6 +116,7 @@ export const usersController = new Elysia({ prefix: "/api/users" })
         google_id: "", // Will be set when user logs in with Google
         email,
         name,
+        role,
         avatar_url: "",
       });
 
@@ -121,6 +127,7 @@ export const usersController = new Elysia({ prefix: "/api/users" })
           id: userId,
           email,
           name,
+          role,
         },
       };
     } catch (error) {

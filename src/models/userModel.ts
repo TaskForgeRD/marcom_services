@@ -53,6 +53,7 @@ export async function createUser(
       userData.email,
       userData.name,
       userData.avatar_url || null,
+      userData.role,
     ],
   );
 
