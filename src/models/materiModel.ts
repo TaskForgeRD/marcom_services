@@ -1,7 +1,15 @@
 import { pool } from "../config/database";
 import { Materi, DokumenMateri } from "../types/";
 
-function buildMateriFromRows(rows: any[]) {
+function hideFieldValue(
+  fields: Array<string>,
+  key: string,
+  value: any
+): string {
+  return fields.includes(key) ? "" : value;
+}
+
+function buildMateriFromRows(rows: any[], hideFields: Array<string> = []) {
   const materiMap = new Map<number, any>();
 
   rows.forEach((row) => {
@@ -31,7 +39,11 @@ function buildMateriFromRows(rows: any[]) {
     if (row.dokumen_id) {
       materiMap.get(row.id).dokumenMateri.push({
         id: row.dokumen_id,
-        linkDokumen: row.link_dokumen,
+        linkDokumen: hideFieldValue(
+          hideFields,
+          "link_dokumen",
+          row.link_dokumen
+        ),
         thumbnail: row.thumbnail,
         tipeMateri: row.tipe_materi,
         keywords: row.keywords ? row.keywords.split(",") : [],
@@ -42,7 +54,7 @@ function buildMateriFromRows(rows: any[]) {
   return Array.from(materiMap.values());
 }
 
-export async function getAllMateriByUser(userId: number) {
+export async function getAllMateri(hideFields: Array<string> = []) {
   const [rows] = await pool.query(
     `
     SELECT 
@@ -63,17 +75,18 @@ export async function getAllMateriByUser(userId: number) {
     LEFT JOIN jenis j ON m.jenis_id = j.id
     LEFT JOIN dokumen_materi dm ON m.id = dm.materi_id
     LEFT JOIN dokumen_materi_keyword dmk ON dm.id = dmk.dokumen_materi_id
-    WHERE m.user_id = ?
     GROUP BY m.id, dm.id
     ORDER BY m.created_at DESC
-  `,
-    [userId]
+  `
   );
 
-  return buildMateriFromRows(rows as any[]);
+  return buildMateriFromRows(rows as any[], hideFields);
 }
 
-export async function getMateriById(id: number, userId: number) {
+export async function getMateriById(
+  id: number,
+  hideFields: Array<string> = []
+) {
   const [rows] = await pool.query(
     `
     SELECT 
@@ -94,17 +107,17 @@ export async function getMateriById(id: number, userId: number) {
     LEFT JOIN jenis j ON m.jenis_id = j.id
     LEFT JOIN dokumen_materi dm ON m.id = dm.materi_id
     LEFT JOIN dokumen_materi_keyword dmk ON dm.id = dmk.dokumen_materi_id
-    WHERE m.id = ? AND m.user_id = ?
+    WHERE m.id = ?
     GROUP BY m.id, dm.id
   `,
-    [id, userId]
+    [id]
   );
 
   if (!rows || (rows as any[]).length === 0) {
     return null;
   }
 
-  const result = buildMateriFromRows(rows as any[]);
+  const result = buildMateriFromRows(rows as any[], hideFields);
   return result.length > 0 ? result[0] : null;
 }
 
@@ -151,12 +164,8 @@ export async function updateMateri(id: number, materi: Materi) {
   return (result as any).affectedRows > 0;
 }
 
-export async function deleteMateri(id: number, userId: number) {
-  // Add user_id check for security
-  const [result] = await pool.execute(
-    "DELETE FROM materi WHERE id = ? AND user_id = ?",
-    [id, userId]
-  );
+export async function deleteMateri(id: number) {
+  const [result] = await pool.execute("DELETE FROM materi WHERE id = ?", [id]);
 
   return (result as any).affectedRows > 0;
 }

@@ -7,14 +7,30 @@ import * as jenisService from "./jenisService";
 import { saveFile } from "../utils/fileUpload";
 import { validateMateriData } from "../utils/validation";
 import { Materi } from "../types/";
+import { Role } from "../models/userModel";
 
-export async function getAllMateriByUser(userId: number) {
-  return await materiModel.getAllMateriByUser(userId);
+function getHiddenFieldByRole(role?: Role) {
+  switch (role) {
+    case "guest":
+      return ["link_dokumen"];
+    case "superadmin":
+    case "admin":
+    default:
+      return [];
+  }
 }
 
-export async function getMateriById(id: number, userId: number) {
-  return await materiModel.getMateriById(id, userId);
+// Jangan berdasarkan User ID, karena materi bisa diakses oleh banyak user
+export async function getAllMateri(userRole?: Role) {
+  const hiddenFields = getHiddenFieldByRole(userRole);
+  return await materiModel.getAllMateri(hiddenFields);
 }
+
+export async function getMateriById(id: number, userRole?: Role) {
+  const hiddenFields = getHiddenFieldByRole(userRole);
+  return await materiModel.getMateriById(id, hiddenFields);
+}
+// Jangan berdasarkan User ID, karena materi bisa diakses oleh banyak user
 
 export async function createMateri(formData: FormData, userId: number) {
   try {
@@ -116,7 +132,7 @@ export async function updateMateri(
 ) {
   try {
     // Check if materi belongs to user
-    const existingMateri = await materiModel.getMateriById(id, userId);
+    const existingMateri = await materiModel.getMateriById(id);
     if (!existingMateri) {
       throw new Error("Materi tidak ditemukan atau Anda tidak memiliki akses");
     }
@@ -241,15 +257,15 @@ export async function updateMateri(
   }
 }
 
-export async function deleteMateri(id: number, userId: number) {
+export async function deleteMateri(id: number) {
   try {
     // Check if materi belongs to user
-    const existingMateri = await materiModel.getMateriById(id, userId);
+    const existingMateri = await materiModel.getMateriById(id);
     if (!existingMateri) {
       throw new Error("Materi tidak ditemukan atau Anda tidak memiliki akses");
     }
 
-    await materiModel.deleteMateri(id, userId);
+    await materiModel.deleteMateri(id);
     return { success: true, message: "Materi berhasil dihapus" };
   } catch (error) {
     console.error("Error in deleteMateri:", error);

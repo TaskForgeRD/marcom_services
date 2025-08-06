@@ -9,11 +9,10 @@ export const materiController = new Elysia({ prefix: "/api/materi" })
   .use(authMiddleware)
   .use(rolesMiddleware(["superadmin", "admin", "guest"]))
   .get("/", async (ctx) => {
-    console.log("👤 User dari middleware:", ctx.user);
-    return await materiService.getAllMateriByUser(ctx.user.userId);
+    return await materiService.getAllMateri(ctx.user.role);
   })
   .get("/:id", async ({ params: { id }, user, set }) => {
-    const materi = await materiService.getMateriById(parseInt(id), user.userId);
+    const materi = await materiService.getMateriById(parseInt(id), user.role);
     if (!materi) {
       set.status = 404;
       return { status: 404, message: "Materi tidak ditemukan" };
@@ -28,7 +27,7 @@ export const materiController = new Elysia({ prefix: "/api/materi" })
 
       // Broadcast stats update to user
       if (result.success) {
-        await broadcastStatsUpdate(io, user.userId);
+        await broadcastStatsUpdate(io, user.role);
       }
 
       return result;
@@ -54,7 +53,7 @@ export const materiController = new Elysia({ prefix: "/api/materi" })
 
       // Broadcast stats update to user
       if (result.success) {
-        await broadcastStatsUpdate(io, user.userId);
+        await broadcastStatsUpdate(io, user.role);
       }
 
       return result;
@@ -69,16 +68,13 @@ export const materiController = new Elysia({ prefix: "/api/materi" })
     }
   })
 
-  .delete("/:id", async ({ params: { id }, user, set }) => {
+  .delete("/:id", async ({ params: { id }, set, user }) => {
     try {
-      const result = await materiService.deleteMateri(
-        parseInt(id),
-        user.userId
-      );
+      const result = await materiService.deleteMateri(parseInt(id));
 
       // Broadcast stats update to user
       if (result.success) {
-        await broadcastStatsUpdate(io, user.userId);
+        await broadcastStatsUpdate(io, user.role);
       }
 
       return result;
@@ -93,9 +89,9 @@ export const materiController = new Elysia({ prefix: "/api/materi" })
 export const statsController = new Elysia()
   .use(authMiddleware)
   .use(rolesMiddleware(["superadmin", "admin", "guest"]))
-  .get("/api/stats", async ({ user }) => {
+  .get("/api/stats", async () => {
     try {
-      const userMateri = await materiService.getAllMateriByUser(user.userId);
+      const userMateri = await materiService.getAllMateri();
       const now = new Date();
 
       return {

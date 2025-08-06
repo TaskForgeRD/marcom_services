@@ -3,10 +3,13 @@ import { Server, Socket } from "socket.io";
 import { Server as HttpServer } from "http";
 import jwt from "jsonwebtoken";
 import * as materiService from "../services/materiService";
+import { UserPayload } from "../middlewares/authMiddleware";
+import { Role } from "../models/userModel";
 
 interface AuthenticatedSocket extends Socket {
   userId?: number;
   userName?: string;
+  role?: Role;
 }
 
 export function setupSocketIO(httpServer: HttpServer) {
@@ -29,6 +32,7 @@ export function setupSocketIO(httpServer: HttpServer) {
       const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
       socket.userId = decoded.userId;
       socket.userName = decoded.name;
+      socket.role = decoded.role;
       next();
     } catch (err) {
       next(new Error("Authentication error"));
@@ -44,7 +48,7 @@ export function setupSocketIO(httpServer: HttpServer) {
     // Send initial stats when user connects
     socket.on("request_stats", async () => {
       try {
-        const stats = await getPersonalStats(socket.userId!);
+        const stats = await getStats(socket.role);
         socket.emit("stats_update", stats);
       } catch (error) {
         socket.emit("stats_error", { message: "Failed to fetch stats" });
@@ -54,7 +58,7 @@ export function setupSocketIO(httpServer: HttpServer) {
     // Handle stats refresh request
     socket.on("refresh_stats", async () => {
       try {
-        const stats = await getPersonalStats(socket.userId!);
+        const stats = await getStats(socket.role);
         socket.emit("stats_update", stats);
       } catch (error) {
         socket.emit("stats_error", { message: "Failed to refresh stats" });
@@ -69,10 +73,10 @@ export function setupSocketIO(httpServer: HttpServer) {
   return io;
 }
 
-// Get personal statistics for a user
-async function getPersonalStats(userId: number) {
+// Get statistics
+async function getStats(userRole: UserPayload["role"]) {
   try {
-    const userMateri = await materiService.getAllMateriByUser(userId);
+    const userMateri = await materiService.getAllMateri(userRole);
 
     const now = new Date();
     const stats = {
@@ -97,10 +101,13 @@ async function getPersonalStats(userId: number) {
 }
 
 // Function to broadcast stats update to a specific user
-export async function broadcastStatsUpdate(io: Server, userId: number) {
+export async function broadcastStatsUpdate(
+  io: Server,
+  userRole: UserPayload["role"]
+) {
   try {
-    const stats = await getPersonalStats(userId);
-    io.to(`user_${userId}`).emit("stats_update", stats);
+    const stats = await getStats(userRole);
+    io.to(`user`).emit("stats_update", stats);
   } catch (error) {
     console.error("Error broadcasting stats update:", error);
   }

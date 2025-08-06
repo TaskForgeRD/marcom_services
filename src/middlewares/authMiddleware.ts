@@ -4,7 +4,7 @@ import { Role } from "../models/userModel";
 
 const JWT_SECRET = process.env.JWT_SECRET || "";
 
-interface JWTPayload {
+export interface UserPayload {
   userId: number;
   email: string;
   name: string;
@@ -12,7 +12,7 @@ interface JWTPayload {
 }
 
 export const authMiddleware = (app: Elysia) =>
-  app.decorate("user", {} as JWTPayload).derive(({ headers, set }) => {
+  app.decorate("user", {} as UserPayload).derive(({ headers, set }) => {
     const authHeader = headers?.authorization;
     const token = authHeader?.startsWith("Bearer ")
       ? authHeader.slice(7)
@@ -24,7 +24,7 @@ export const authMiddleware = (app: Elysia) =>
     }
 
     try {
-      const decoded = jwt.verify(token, JWT_SECRET) as JWTPayload;
+      const decoded = jwt.verify(token, JWT_SECRET) as UserPayload;
       return { user: decoded };
     } catch {
       set.status = 401;
@@ -32,6 +32,6 @@ export const authMiddleware = (app: Elysia) =>
     }
   });
 
-export function generateToken(payload: JWTPayload): string {
+export function generateToken(payload: UserPayload): string {
   return jwt.sign(payload, JWT_SECRET, { expiresIn: "7d" });
 }
