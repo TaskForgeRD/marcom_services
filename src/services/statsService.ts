@@ -1,4 +1,5 @@
 import { pool } from "../config/database";
+import { RowDataPacket } from "mysql2";
 
 export interface UserStats {
   userId: number;
@@ -11,9 +12,21 @@ export interface UserStats {
   lastUpdated: Date;
 }
 
+interface MateriStatsRow extends RowDataPacket {
+  total: number;
+  fitur: number;
+  komunikasi: number;
+  aktif: number;
+  expired: number;
+}
+
+interface DokumenStatsRow extends RowDataPacket {
+  dokumen: number;
+}
+
 export async function getUserStats(userId: number): Promise<UserStats> {
   try {
-    const [materiRows] = await pool.execute(
+    const [materiRows] = await pool.execute<MateriStatsRow[]>(
       `
       SELECT 
         COUNT(*) as total,
@@ -27,7 +40,7 @@ export async function getUserStats(userId: number): Promise<UserStats> {
       [userId]
     );
 
-    const [dokumenRows] = await pool.execute(
+    const [dokumenRows] = await pool.execute<DokumenStatsRow[]>(
       `
       SELECT COUNT(DISTINCT m.id) as dokumen
       FROM materi m
@@ -37,8 +50,8 @@ export async function getUserStats(userId: number): Promise<UserStats> {
       [userId]
     );
 
-    const materiStats = materiRows[0] as any;
-    const dokumenStats = dokumenRows[0] as any;
+    const materiStats = materiRows[0];
+    const dokumenStats = dokumenRows[0];
 
     return {
       userId,

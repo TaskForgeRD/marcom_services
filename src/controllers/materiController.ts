@@ -20,7 +20,7 @@ export const materiController = new Elysia({ prefix: "/api/materi" })
     }
     return materi;
   })
-  .use(rolesMiddleware(["superadmin", "admin"]))
+  // .use(rolesMiddleware(["superadmin", "admin"]))
   .post("/", async ({ request, user, set }) => {
     try {
       const formData = await request.formData();

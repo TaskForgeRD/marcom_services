@@ -4,18 +4,23 @@
   "scripts": {
     "dev": "bun run --watch src/index.ts",
     "start": "bun src/index.ts",
-    "setup": "bash setup.sh"
+    "setup": "bash setup.sh",
+    "seed": "ts-node src/seeder.ts"
   },
   "dependencies": {
     "elysia": "^1.2.25",
     "jsonwebtoken": "^9.0.2",
     "mysql2": "^3.14.1",
-    "socket.io": "^4.8.1"
+    "socket.io": "^4.8.1",
+    "yargs": "^18.0.0"
   },
   "devDependencies": {
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^22.15.2",
-    "bun-types": "latest"
+    "@types/yargs": "^17.0.33",
+    "bun-types": "latest",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.2"
   },
   "module": "src/index.js"
 }
