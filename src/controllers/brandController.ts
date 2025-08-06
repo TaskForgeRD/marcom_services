@@ -5,11 +5,9 @@ import { rolesMiddleware } from "../middlewares/rolesMiddleware";
 
 export const brandController = new Elysia({ prefix: "/api/brands" })
   .use(authMiddleware)
-  .use(rolesMiddleware(["superadmin", "admin"]))
-  .get("/", async () => {
-    return await brandService.getAllBrands();
-  })
-  .get("/:id", async ({ params: { id }, set, user }) => {
+  .use(rolesMiddleware(["superadmin", "admin", "guest"]))
+  .get("/", async () => brandService.getAllBrands())
+  .get("/:id", async ({ params: { id }, set }) => {
     const brand = await brandService.getBrandById(parseInt(id));
     if (!brand) {
       set.status = 404;
@@ -17,11 +15,11 @@ export const brandController = new Elysia({ prefix: "/api/brands" })
     }
     return { success: true, data: brand };
   })
+  .use(rolesMiddleware(["superadmin", "admin"]))
   .post(
     "/",
     async ({ body, set }) => {
       try {
-        // Safe destructuring with fallback
         const requestBody = body || {};
         const { name } = requestBody as { name?: string };
 
@@ -48,7 +46,6 @@ export const brandController = new Elysia({ prefix: "/api/brands" })
       }),
     }
   )
-
   .put(
     "/:id",
     async ({ params: { id }, body, set }) => {

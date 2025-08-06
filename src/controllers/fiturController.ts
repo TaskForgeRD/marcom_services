@@ -5,7 +5,7 @@ import { rolesMiddleware } from "../middlewares/rolesMiddleware";
 
 export const fiturController = new Elysia({ prefix: "/api/fitur" })
   .use(authMiddleware)
-  .use(rolesMiddleware(["superadmin", "admin"]))
+  .use(rolesMiddleware(["superadmin", "admin", "guest"]))
   .get("", async () => {
     return await fiturService.getAllFitur();
   })
@@ -17,6 +17,7 @@ export const fiturController = new Elysia({ prefix: "/api/fitur" })
     }
     return { success: true, data: fitur };
   })
+  .use(rolesMiddleware(["superadmin", "admin"]))
   .post(
     "",
     async ({ body, set }) => {

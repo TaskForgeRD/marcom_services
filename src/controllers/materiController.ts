@@ -8,13 +8,10 @@ import { rolesMiddleware } from "../middlewares/rolesMiddleware";
 export const materiController = new Elysia({ prefix: "/api/materi" })
   .use(authMiddleware)
   .use(rolesMiddleware(["superadmin", "admin", "guest"]))
-
-  // Endpoint to get all materi for the authenticated user
   .get("/", async (ctx) => {
     console.log("👤 User dari middleware:", ctx.user);
     return await materiService.getAllMateriByUser(ctx.user.userId);
   })
-
   .get("/:id", async ({ params: { id }, user, set }) => {
     const materi = await materiService.getMateriById(parseInt(id), user.userId);
     if (!materi) {
@@ -23,7 +20,7 @@ export const materiController = new Elysia({ prefix: "/api/materi" })
     }
     return materi;
   })
-
+  .use(rolesMiddleware(["superadmin", "admin"]))
   .post("/", async ({ request, user, set }) => {
     try {
       const formData = await request.formData();

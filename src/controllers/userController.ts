@@ -82,7 +82,6 @@ export const usersController = new Elysia({ prefix: "/api/users" })
         return { success: false, message: "At least one field is required" };
       }
 
-      // Validate role if provided
       if (role && !userModel.roles.includes(role)) {
         set.status = 400;
         return {
@@ -164,7 +163,7 @@ export const usersController = new Elysia({ prefix: "/api/users" })
         set.status = 400;
         return {
           success: false,
-          message: "User with this email already exists",
+          message: "Pengguna dengan email ini sudah ada",
         };
       }
 
@@ -172,7 +171,7 @@ export const usersController = new Elysia({ prefix: "/api/users" })
 
       // Create new user without google_id (will be set when they login)
       const userId = await userModel.createUser({
-        google_id: "", // Will be set when user logs in with Google
+        google_id: "",
         email,
         name,
         role: userRole,

@@ -5,7 +5,7 @@ import { rolesMiddleware } from "../middlewares/rolesMiddleware";
 
 export const jenisController = new Elysia({ prefix: "/api/jenis" })
   .use(authMiddleware)
-  .use(rolesMiddleware(["superadmin", "admin"]))
+  .use(rolesMiddleware(["superadmin", "admin", "guest"]))
   .get("/", async () => {
     return await jenisService.getAllJenis();
   })
@@ -17,6 +17,7 @@ export const jenisController = new Elysia({ prefix: "/api/jenis" })
     }
     return { success: true, data: jenis };
   })
+  .use(rolesMiddleware(["superadmin", "admin"]))
   .post(
     "/",
     async ({ body, set }) => {

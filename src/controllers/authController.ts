@@ -13,7 +13,7 @@ export const authController = new Elysia({ prefix: "/api/auth" })
   .get("/google", () => {
     console.log("Google OAuth login initiated");
     const googleAuthUrl = new URL(
-      "https://accounts.google.com/o/oauth2/v2/auth",
+      "https://accounts.google.com/o/oauth2/v2/auth"
     );
     googleAuthUrl.searchParams.set("client_id", GOOGLE_CLIENT_ID);
     googleAuthUrl.searchParams.set("redirect_uri", REDIRECT_URI);
@@ -34,7 +34,7 @@ export const authController = new Elysia({ prefix: "/api/auth" })
 
       console.log(
         "Google OAuth callback started with code:",
-        code.substring(0, 20) + "...",
+        code.substring(0, 20) + "..."
       );
 
       // Exchange code for access token
@@ -120,7 +120,7 @@ export const authController = new Elysia({ prefix: "/api/auth" })
             Authorization: `Bearer ${tokenData.access_token}`,
             Accept: "application/json",
           },
-        },
+        }
       );
 
       if (!userResponse.ok) {

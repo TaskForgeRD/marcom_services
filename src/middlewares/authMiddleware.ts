@@ -11,9 +11,8 @@ interface JWTPayload {
   role?: Role;
 }
 
-export const authMiddleware = new Elysia()
-  .decorate("user", {} as JWTPayload)
-  .derive(({ headers, set }) => {
+export const authMiddleware = (app: Elysia) =>
+  app.decorate("user", {} as JWTPayload).derive(({ headers, set }) => {
     const authHeader = headers?.authorization;
     const token = authHeader?.startsWith("Bearer ")
       ? authHeader.slice(7)

@@ -5,7 +5,7 @@ import { rolesMiddleware } from "../middlewares/rolesMiddleware";
 
 export const clusterController = new Elysia({ prefix: "/api/clusters" })
   .use(authMiddleware)
-  .use(rolesMiddleware(["superadmin", "admin"]))
+  .use(rolesMiddleware(["superadmin", "admin", "guest"]))
   .get("/", async () => {
     return await clusterService.getAllClusters();
   })
@@ -17,6 +17,7 @@ export const clusterController = new Elysia({ prefix: "/api/clusters" })
     }
     return { success: true, data: cluster };
   })
+  .use(rolesMiddleware(["superadmin", "admin"]))
   .post(
     "/api/clusters",
     async ({ body, set }) => {
@@ -46,7 +47,7 @@ export const clusterController = new Elysia({ prefix: "/api/clusters" })
       body: t.Object({
         name: t.String(),
       }),
-    },
+    }
   )
   .put(
     "/:id",
@@ -63,7 +64,7 @@ export const clusterController = new Elysia({ prefix: "/api/clusters" })
 
         const result = await clusterService.updateCluster(
           parseInt(id),
-          name.trim(),
+          name.trim()
         );
         if (!result) {
           set.status = 404;
@@ -81,7 +82,7 @@ export const clusterController = new Elysia({ prefix: "/api/clusters" })
       body: t.Object({
         name: t.String(),
       }),
-    },
+    }
   )
   .delete("/:id", async ({ params: { id }, set }) => {
     try {
@@ -100,7 +101,7 @@ export const clusterController = new Elysia({ prefix: "/api/clusters" })
         "message" in error &&
         typeof (error as { message?: unknown }).message === "string" &&
         (error as { message: string }).message.includes(
-          "foreign key constraint",
+          "foreign key constraint"
         )
       ) {
         set.status = 400;
