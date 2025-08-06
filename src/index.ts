@@ -17,8 +17,8 @@ import { fileRoutes } from "./routes/fileRoutes";
 import { setupSocketIO } from "./socket/socketServer";
 import { usersController } from "./controllers/userController";
 
-const SOCKET_IO_PORT = process.env.SOCKET_IO || 5002;
-const PORT = process.env.PORT || 5001;
+const SOCKET_IO_PORT = process.env.SOCKET_IO || 5001;
+const PORT = process.env.PORT || 5000;
 
 // Ensure uploads directory exists
 const uploadsDir = path.join(process.cwd(), "uploads");
