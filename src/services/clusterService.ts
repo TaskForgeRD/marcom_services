@@ -8,6 +8,10 @@ export async function getClusterById(id: number) {
   return await clusterModel.getClusterById(id);
 }
 
+export async function getClusterByName(name: string) {
+  return await clusterModel.getClusterByName(name);
+}
+
 export async function getClusterIdByName(name: string) {
   const cluster = await clusterModel.getClusterByName(name);
   return cluster?.id;

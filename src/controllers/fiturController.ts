@@ -6,7 +6,7 @@ import { rolesMiddleware } from "../middlewares/rolesMiddleware";
 export const fiturController = new Elysia({ prefix: "/api/fitur" })
   .use(authMiddleware)
   .use(rolesMiddleware(["superadmin", "admin", "guest"]))
-  .get("", async () => {
+  .get("/", async () => {
     return await fiturService.getAllFitur();
   })
   .get("/:id", async ({ params: { id }, set }) => {
@@ -19,16 +19,24 @@ export const fiturController = new Elysia({ prefix: "/api/fitur" })
   })
   .use(rolesMiddleware(["superadmin", "admin"]))
   .post(
-    "",
+    "/",
     async ({ body, set }) => {
       try {
-        // Safe destructuring with fallback
         const requestBody = body || {};
         const { name } = requestBody as { name?: string };
 
         if (!name || !name.trim()) {
           set.status = 400;
           return { success: false, message: "Nama fitur harus diisi" };
+        }
+
+        const existingFitur = await fiturService.getFiturByName(name.trim());
+        if (existingFitur) {
+          set.status = 400;
+          return {
+            success: false,
+            message: "Fitur dengan nama tersebut sudah ada",
+          };
         }
 
         const result = await fiturService.createFitur(name.trim());
@@ -53,13 +61,21 @@ export const fiturController = new Elysia({ prefix: "/api/fitur" })
     "/:id",
     async ({ params: { id }, body, set }) => {
       try {
-        // Safe destructuring with fallback
         const requestBody = body || {};
         const { name } = requestBody as { name?: string };
 
         if (!name || !name.trim()) {
           set.status = 400;
           return { success: false, message: "Nama fitur harus diisi" };
+        }
+
+        const existingFitur = await fiturService.getFiturByName(name.trim());
+        if (existingFitur && existingFitur.id !== parseInt(id)) {
+          set.status = 400;
+          return {
+            success: false,
+            message: "Fitur dengan nama tersebut sudah ada",
+          };
         }
 
         const result = await fiturService.updateFitur(
@@ -84,8 +100,6 @@ export const fiturController = new Elysia({ prefix: "/api/fitur" })
       }),
     }
   )
-
-  // Delete fitur
   .delete("/:id", async ({ params: { id }, set }) => {
     try {
       const result = await fiturService.deleteFitur(parseInt(id));
@@ -101,7 +115,7 @@ export const fiturController = new Elysia({ prefix: "/api/fitur" })
         typeof error === "object" &&
         error !== null &&
         "message" in error &&
-        typeof (error as { message: unknown }).message === "string" &&
+        typeof (error as { message?: unknown }).message === "string" &&
         (error as { message: string }).message.includes(
           "foreign key constraint"
         )

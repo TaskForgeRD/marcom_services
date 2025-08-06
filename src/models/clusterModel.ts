@@ -18,12 +18,6 @@ export async function getClusterByName(name: string) {
 }
 
 export async function createCluster(name: string) {
-  // Check if cluster already exists
-  const existing = await getClusterByName(name);
-  if (existing) {
-    throw new Error("Cluster dengan nama tersebut sudah ada");
-  }
-
   const [result] = await pool.execute("INSERT INTO cluster (name) VALUES (?)", [
     name,
   ]);
@@ -33,12 +27,6 @@ export async function createCluster(name: string) {
 }
 
 export async function updateCluster(id: number, name: string) {
-  // Check if another cluster with the same name exists
-  const existing = await getClusterByName(name);
-  if (existing && existing.id !== id) {
-    throw new Error("Cluster dengan nama tersebut sudah ada");
-  }
-
   const [result] = await pool.execute(
     "UPDATE cluster SET name = ? WHERE id = ?",
     [name, id]

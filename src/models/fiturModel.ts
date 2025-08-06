@@ -16,12 +16,6 @@ export async function getFiturByName(name: string) {
 }
 
 export async function createFitur(name: string) {
-  // Check if fitur already exists
-  const existing = await getFiturByName(name);
-  if (existing) {
-    throw new Error("Fitur dengan nama tersebut sudah ada");
-  }
-
   const [result] = await pool.execute("INSERT INTO fitur (name) VALUES (?)", [
     name,
   ]);
@@ -31,12 +25,6 @@ export async function createFitur(name: string) {
 }
 
 export async function updateFitur(id: number, name: string) {
-  // Check if another fitur with the same name exists
-  const existing = await getFiturByName(name);
-  if (existing && existing.id !== id) {
-    throw new Error("Fitur dengan nama tersebut sudah ada");
-  }
-
   const [result] = await pool.execute(
     "UPDATE fitur SET name = ? WHERE id = ?",
     [name, id]

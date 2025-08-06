@@ -1,4 +1,3 @@
-// Backend - Stats Service (services/statsService.ts)
 import { pool } from "../config/database";
 
 export interface UserStats {

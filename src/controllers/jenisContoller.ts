@@ -22,13 +22,21 @@ export const jenisController = new Elysia({ prefix: "/api/jenis" })
     "/",
     async ({ body, set }) => {
       try {
-        // Safe destructuring with fallback
         const requestBody = body || {};
         const { name } = requestBody as { name?: string };
 
         if (!name || !name.trim()) {
           set.status = 400;
           return { success: false, message: "Nama jenis harus diisi" };
+        }
+
+        const existingJenis = await jenisService.getJenisByName(name.trim());
+        if (existingJenis) {
+          set.status = 400;
+          return {
+            success: false,
+            message: "Jenis dengan nama tersebut sudah ada",
+          };
         }
 
         const result = await jenisService.createJenis(name.trim());
@@ -53,13 +61,21 @@ export const jenisController = new Elysia({ prefix: "/api/jenis" })
     "/:id",
     async ({ params: { id }, body, set }) => {
       try {
-        // Safe destructuring with fallback
         const requestBody = body || {};
         const { name } = requestBody as { name?: string };
 
         if (!name || !name.trim()) {
           set.status = 400;
           return { success: false, message: "Nama jenis harus diisi" };
+        }
+
+        const existingJenis = await jenisService.getJenisByName(name.trim());
+        if (existingJenis && existingJenis.id !== parseInt(id)) {
+          set.status = 400;
+          return {
+            success: false,
+            message: "Jenis dengan nama tersebut sudah ada",
+          };
         }
 
         const result = await jenisService.updateJenis(
@@ -99,7 +115,7 @@ export const jenisController = new Elysia({ prefix: "/api/jenis" })
         typeof error === "object" &&
         error !== null &&
         "message" in error &&
-        typeof (error as { message: unknown }).message === "string" &&
+        typeof (error as { message?: unknown }).message === "string" &&
         (error as { message: string }).message.includes(
           "foreign key constraint"
         )

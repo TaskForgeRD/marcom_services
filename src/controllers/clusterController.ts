@@ -19,16 +19,26 @@ export const clusterController = new Elysia({ prefix: "/api/clusters" })
   })
   .use(rolesMiddleware(["superadmin", "admin"]))
   .post(
-    "/api/clusters",
+    "/",
     async ({ body, set }) => {
       try {
-        // Safe destructuring with fallback
         const requestBody = body || {};
         const { name } = requestBody as { name?: string };
 
         if (!name || !name.trim()) {
           set.status = 400;
           return { success: false, message: "Nama cluster harus diisi" };
+        }
+
+        const existingCluster = await clusterService.getClusterByName(
+          name.trim()
+        );
+        if (existingCluster) {
+          set.status = 400;
+          return {
+            success: false,
+            message: "Cluster dengan nama tersebut sudah ada",
+          };
         }
 
         const result = await clusterService.createCluster(name.trim());
@@ -53,13 +63,23 @@ export const clusterController = new Elysia({ prefix: "/api/clusters" })
     "/:id",
     async ({ params: { id }, body, set }) => {
       try {
-        // Safe destructuring with fallback
         const requestBody = body || {};
         const { name } = requestBody as { name?: string };
 
         if (!name || !name.trim()) {
           set.status = 400;
           return { success: false, message: "Nama cluster harus diisi" };
+        }
+
+        const existingCluster = await clusterService.getClusterByName(
+          name.trim()
+        );
+        if (existingCluster && existingCluster.id !== parseInt(id)) {
+          set.status = 400;
+          return {
+            success: false,
+            message: "Cluster dengan nama tersebut sudah ada",
+          };
         }
 
         const result = await clusterService.updateCluster(

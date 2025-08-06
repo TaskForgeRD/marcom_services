@@ -16,12 +16,6 @@ export async function getBrandByName(name: string) {
 }
 
 export async function createBrand(name: string) {
-  // Check if brand already exists
-  const existing = await getBrandByName(name);
-  if (existing) {
-    throw new Error("Brand dengan nama tersebut sudah ada");
-  }
-
   const [result] = await pool.execute("INSERT INTO brand (name) VALUES (?)", [
     name,
   ]);
@@ -31,12 +25,6 @@ export async function createBrand(name: string) {
 }
 
 export async function updateBrand(id: number, name: string) {
-  // Check if another brand with the same name exists
-  const existing = await getBrandByName(name);
-  if (existing && existing.id !== id) {
-    throw new Error("Brand dengan nama tersebut sudah ada");
-  }
-
   const [result] = await pool.execute(
     "UPDATE brand SET name = ? WHERE id = ?",
     [name, id]

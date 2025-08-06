@@ -8,6 +8,10 @@ export async function getBrandById(id: number) {
   return await brandModel.getBrandById(id);
 }
 
+export async function getBrandByName(name: string) {
+  return await brandModel.getBrandByName(name);
+}
+
 export async function getBrandIdByName(name: string) {
   const brand = await brandModel.getBrandByName(name);
   return brand?.id;

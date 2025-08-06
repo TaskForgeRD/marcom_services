@@ -28,6 +28,16 @@ export const brandController = new Elysia({ prefix: "/api/brands" })
           return { success: false, message: "Nama brand harus diisi" };
         }
 
+        // Check if brand already exists
+        const existingBrand = await brandService.getBrandByName(name.trim());
+        if (existingBrand) {
+          set.status = 400;
+          return {
+            success: false,
+            message: "Brand dengan nama tersebut sudah ada",
+          };
+        }
+
         const result = await brandService.createBrand(name.trim());
         return {
           success: true,
@@ -46,17 +56,27 @@ export const brandController = new Elysia({ prefix: "/api/brands" })
       }),
     }
   )
+
   .put(
     "/:id",
     async ({ params: { id }, body, set }) => {
       try {
-        // Safe destructuring with fallback
         const requestBody = body || {};
         const { name } = requestBody as { name?: string };
 
         if (!name || !name.trim()) {
           set.status = 400;
           return { success: false, message: "Nama brand harus diisi" };
+        }
+
+        // Check if brand with same name already exists (excluding current brand)
+        const existingBrand = await brandService.getBrandByName(name.trim());
+        if (existingBrand && existingBrand.id !== parseInt(id)) {
+          set.status = 400;
+          return {
+            success: false,
+            message: "Brand dengan nama tersebut sudah ada",
+          };
         }
 
         const result = await brandService.updateBrand(

@@ -16,12 +16,6 @@ export async function getJenisByName(name: string) {
 }
 
 export async function createJenis(name: string) {
-  // Check if jenis already exists
-  const existing = await getJenisByName(name);
-  if (existing) {
-    throw new Error("Jenis dengan nama tersebut sudah ada");
-  }
-
   const [result] = await pool.execute("INSERT INTO jenis (name) VALUES (?)", [
     name,
   ]);
@@ -31,12 +25,6 @@ export async function createJenis(name: string) {
 }
 
 export async function updateJenis(id: number, name: string) {
-  // Check if another jenis with the same name exists
-  const existing = await getJenisByName(name);
-  if (existing && existing.id !== id) {
-    throw new Error("Jenis dengan nama tersebut sudah ada");
-  }
-
   const [result] = await pool.execute(
     "UPDATE jenis SET name = ? WHERE id = ?",
     [name, id]

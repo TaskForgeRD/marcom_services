@@ -8,6 +8,10 @@ export async function getJenisById(id: number) {
   return await jenisModel.getJenisById(id);
 }
 
+export async function getJenisByName(name: string) {
+  return await jenisModel.getJenisByName(name);
+}
+
 export async function getJenisIdByName(name: string) {
   const jenis = await jenisModel.getJenisByName(name);
   return jenis?.id;

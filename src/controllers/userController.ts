@@ -163,7 +163,7 @@ export const usersController = new Elysia({ prefix: "/api/users" })
         set.status = 400;
         return {
           success: false,
-          message: "Pengguna dengan email ini sudah ada",
+          message: "Pengguna dengan email tersebut sudah ada",
         };
       }
 

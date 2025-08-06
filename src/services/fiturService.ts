@@ -8,6 +8,10 @@ export async function getFiturById(id: number) {
   return await fiturModel.getFiturById(id);
 }
 
+export async function getFiturByName(name: string) {
+  return await fiturModel.getFiturByName(name);
+}
+
 export async function getFiturIdByName(name: string) {
   const fitur = await fiturModel.getFiturByName(name);
   return fitur?.id;
