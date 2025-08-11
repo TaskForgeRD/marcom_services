@@ -98,4 +98,4 @@ INSERT INTO jenis (name) VALUES
   ('Tactical');
 
 ALTER TABLE users
- ADD COLUMN role ENUM('user', 'admin', 'superadmin', 'guest') NULL;
+ADD COLUMN role ENUM('user', 'admin', 'superadmin', 'guest') NOT NULL DEFAULT 'guest';

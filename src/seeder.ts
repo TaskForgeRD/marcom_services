@@ -22,6 +22,7 @@ function getRandom<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
+// Fungsi untuk mendapatkan tanggal random antara start dan end
 function getRandomDate(start: Date, end: Date): string {
   const date = new Date(
     start.getTime() + Math.random() * (end.getTime() - start.getTime())
@@ -39,6 +40,7 @@ async function seed() {
 
   console.log("✅ Connected to database");
 
+  // Reset data
   if (argv.reset) {
     console.log(
       "⚠️ Resetting materi, dokumen_materi, dokumen_materi_keyword..."
@@ -48,6 +50,7 @@ async function seed() {
     await connection.query("DELETE FROM materi");
   }
 
+  // Insert brand
   const brands = ["BRImo", "BRImerchant", "BRIZZI"];
   for (const name of brands) {
     await connection.query(
@@ -60,6 +63,7 @@ async function seed() {
     );
   }
 
+  // Insert clusters
   const clusters = ["Bayar-Bayar Harian", "Bayar-Bayar Bulanan", "Tagihan"];
   for (const name of clusters) {
     await connection.query(
@@ -72,6 +76,7 @@ async function seed() {
     );
   }
 
+  // Insert fitur
   const fiturList = ["Donasi", "QRIS Source CC", "Transfer Internasional"];
   for (const name of fiturList) {
     await connection.query(
@@ -84,6 +89,7 @@ async function seed() {
     );
   }
 
+  // Insert jenis
   const jenisList = ["Tematik", "Tactical"];
   for (const name of jenisList) {
     await connection.query(
@@ -132,6 +138,7 @@ async function seed() {
     const fitur = getRandom(fiturRows);
     const jenis = getRandom(jenisRows);
 
+    // Random bulan dari Juli (6) sampai Desember (11)
     const startDate = getRandomDate(
       new Date(2025, 6, 1),
       new Date(2025, 11, 31)
@@ -146,6 +153,7 @@ async function seed() {
     const periode = "0";
     const tipeMateri = getRandom(tipeMateriList);
 
+    // Insert materi
     const [result] = await connection.query<ResultSetHeader>(
       `
       INSERT INTO materi (user_id, brand_id, cluster_id, fitur_id, jenis_id, nama_materi, start_date, end_date, periode)
@@ -186,6 +194,7 @@ async function seed() {
         )
       )[0][0].id;
 
+    // Insert dokumen_materi
     const [docResult] = await connection.query<ResultSetHeader>(
       `
       INSERT INTO dokumen_materi (materi_id, link_dokumen, tipe_materi, thumbnail)
@@ -216,6 +225,7 @@ async function seed() {
         )
       )[0][0].id;
 
+    // Insert keywords
     const shuffledKeywords = [...keywordsPool]
       .sort(() => 0.5 - Math.random())
       .slice(0, 3);
