@@ -8,8 +8,38 @@ import { rolesMiddleware } from "../middlewares/rolesMiddleware";
 export const materiController = new Elysia({ prefix: "/api/materi" })
   .use(authMiddleware)
   .use(rolesMiddleware(["superadmin", "admin", "guest"]))
-  .get("/", async (ctx) => {
-    return await materiService.getAllMateri(ctx.user.role);
+  .get("/", async ({ query, user }) => {
+    // Extract pagination and filter parameters
+    const page = parseInt(query.page as string) || 1;
+    const limit = parseInt(query.limit as string) || 10;
+    const search = (query.search as string) || "";
+    const status = (query.status as string) || "";
+    const brand = (query.brand as string) || "";
+    const cluster = (query.cluster as string) || "";
+    const fitur = (query.fitur as string) || "";
+    const jenis = (query.jenis as string) || "";
+    const startDate = (query.start_date as string) || "";
+    const endDate = (query.end_date as string) || "";
+    const onlyVisualDocs = query.only_visual_docs === "true";
+
+    const filters = {
+      search,
+      status,
+      brand,
+      cluster,
+      fitur,
+      jenis,
+      start_date: startDate,
+      end_date: endDate,
+      only_visual_docs: onlyVisualDocs,
+    };
+
+    return await materiService.getPaginatedMateri(
+      page,
+      limit,
+      filters,
+      user.role
+    );
   })
   .get("/:id", async ({ params: { id }, user, set }) => {
     const materi = await materiService.getMateriById(parseInt(id), user.role);
@@ -19,13 +49,11 @@ export const materiController = new Elysia({ prefix: "/api/materi" })
     }
     return materi;
   })
-  // .use(rolesMiddleware(["superadmin", "admin"]))
   .post("/", async ({ request, user, set }) => {
     try {
       const formData = await request.formData();
       const result = await materiService.createMateri(formData, user.userId);
 
-      // Broadcast stats update to user
       if (result.success) {
         await broadcastStatsUpdate(io, user.role);
       }
@@ -41,7 +69,6 @@ export const materiController = new Elysia({ prefix: "/api/materi" })
       };
     }
   })
-
   .put("/:id", async ({ params: { id }, request, user, set }) => {
     try {
       const formData = await request.formData();
@@ -51,7 +78,6 @@ export const materiController = new Elysia({ prefix: "/api/materi" })
         user.userId
       );
 
-      // Broadcast stats update to user
       if (result.success) {
         await broadcastStatsUpdate(io, user.role);
       }
@@ -67,12 +93,10 @@ export const materiController = new Elysia({ prefix: "/api/materi" })
       };
     }
   })
-
   .delete("/:id", async ({ params: { id }, set, user }) => {
     try {
       const result = await materiService.deleteMateri(parseInt(id));
 
-      // Broadcast stats update to user
       if (result.success) {
         await broadcastStatsUpdate(io, user.role);
       }
@@ -89,9 +113,9 @@ export const materiController = new Elysia({ prefix: "/api/materi" })
 export const statsController = new Elysia()
   .use(authMiddleware)
   .use(rolesMiddleware(["superadmin", "admin", "guest"]))
-  .get("/api/stats", async () => {
+  .get("/api/stats", async ({ user }) => {
     try {
-      const userMateri = await materiService.getAllMateri();
+      const userMateri = await materiService.getAllMateri(user.role);
       const now = new Date();
 
       return {

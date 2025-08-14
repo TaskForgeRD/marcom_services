@@ -1,4 +1,3 @@
-// services/materiService.ts
 import * as materiModel from "../models/materiModel";
 import * as brandService from "./brandService";
 import * as clusterService from "./clusterService";
@@ -20,7 +19,21 @@ function getHiddenFieldByRole(role?: Role) {
   }
 }
 
-// Jangan berdasarkan User ID, karena materi bisa diakses oleh banyak user
+export async function getPaginatedMateri(
+  page: number,
+  limit: number,
+  filters: any,
+  userRole?: Role
+) {
+  const hiddenFields = getHiddenFieldByRole(userRole);
+  return await materiModel.getPaginatedMateri(
+    page,
+    limit,
+    filters,
+    hiddenFields
+  );
+}
+
 export async function getAllMateri(userRole?: Role) {
   const hiddenFields = getHiddenFieldByRole(userRole);
   return await materiModel.getAllMateri(hiddenFields);
@@ -30,7 +43,6 @@ export async function getMateriById(id: number, userRole?: Role) {
   const hiddenFields = getHiddenFieldByRole(userRole);
   return await materiModel.getMateriById(id, hiddenFields);
 }
-// Jangan berdasarkan User ID, karena materi bisa diakses oleh banyak user
 
 export async function createMateri(formData: FormData, userId: number) {
   try {
