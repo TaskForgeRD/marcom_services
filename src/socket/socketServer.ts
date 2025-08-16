@@ -1,8 +1,8 @@
-// server/socketio/socketServer.ts
+// src/socket/socketServer.ts
 import { Server, Socket } from "socket.io";
 import { Server as HttpServer } from "http";
 import jwt from "jsonwebtoken";
-import * as materiService from "../services/materiService";
+import * as statsService from "../services/statsService";
 import { UserPayload } from "../middlewares/authMiddleware";
 import { Role } from "../models/userModel";
 
@@ -55,6 +55,18 @@ export function setupSocketIO(httpServer: HttpServer) {
       }
     });
 
+    // Handle stats request with filters
+    socket.on("request_stats_with_filters", async (filters: any) => {
+      try {
+        const stats = await getStatsWithFilters(filters, socket.role);
+        socket.emit("stats_update", stats);
+      } catch (error) {
+        socket.emit("stats_error", {
+          message: "Failed to fetch filtered stats",
+        });
+      }
+    });
+
     // Handle stats refresh request
     socket.on("refresh_stats", async () => {
       try {
@@ -73,29 +85,27 @@ export function setupSocketIO(httpServer: HttpServer) {
   return io;
 }
 
-// Get statistics
+// Get statistics without filters
 async function getStats(userRole: UserPayload["role"]) {
   try {
-    const userMateri = await materiService.getAllMateri(userRole);
-
-    const now = new Date();
-    const stats = {
-      total: userMateri.length,
-      fitur: userMateri.filter((m) => m.fitur && m.fitur.trim()).length,
-      komunikasi: userMateri.filter(
-        (m) => m.nama_materi && m.nama_materi.trim()
-      ).length,
-      aktif: userMateri.filter((m) => new Date(m.end_date) > now).length,
-      expired: userMateri.filter((m) => new Date(m.end_date) <= now).length,
-      dokumen: userMateri.filter(
-        (m) => m.dokumenMateri && m.dokumenMateri.length > 0
-      ).length,
-      lastUpdated: new Date().toISOString(),
-    };
-
+    const stats = await statsService.getCompleteStats({}, userRole);
     return stats;
   } catch (error) {
-    console.error("Error getting personal stats:", error);
+    console.error("Error getting stats:", error);
+    throw error;
+  }
+}
+
+// Get statistics with filters
+async function getStatsWithFilters(
+  filters: any,
+  userRole: UserPayload["role"]
+) {
+  try {
+    const stats = await statsService.getCompleteStats(filters, userRole);
+    return stats;
+  } catch (error) {
+    console.error("Error getting filtered stats:", error);
     throw error;
   }
 }
@@ -103,10 +113,13 @@ async function getStats(userRole: UserPayload["role"]) {
 // Function to broadcast stats update to a specific user
 export async function broadcastStatsUpdate(
   io: Server,
-  userRole: UserPayload["role"]
+  userRole: UserPayload["role"],
+  filters?: any
 ) {
   try {
-    const stats = await getStats(userRole);
+    const stats = filters
+      ? await getStatsWithFilters(filters, userRole)
+      : await getStats(userRole);
     io.to(`user`).emit("stats_update", stats);
   } catch (error) {
     console.error("Error broadcasting stats update:", error);

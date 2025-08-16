@@ -16,6 +16,7 @@ import { materiController } from "./controllers/materiController";
 import { fileRoutes } from "./routes/fileRoutes";
 import { setupSocketIO } from "./socket/socketServer";
 import { usersController } from "./controllers/userController";
+import { statsController } from "./controllers/statsController";
 
 const SOCKET_IO_PORT = process.env.SOCKET_IO || 5001;
 const PORT = process.env.PORT || 5000;
@@ -35,6 +36,7 @@ const app = new Elysia()
   .use(fiturController)
   .use(jenisController)
   .use(materiController)
+  .use(statsController)
   .use(usersController)
   .use(fileRoutes);
 
