@@ -4,8 +4,8 @@ export type Materi = {
   user_id: number;
   brand_id: number;
   cluster_id: number;
-  fitur_id?: number; // Changed from fitur: string
-  jenis_id?: number; // Changed from jenis: string
+  fitur_id?: number;
+  jenis_id?: number;
   nama_materi: string;
   start_date: string;
   end_date: string;

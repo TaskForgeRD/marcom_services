@@ -4,51 +4,74 @@ import { authMiddleware } from "../middlewares/authMiddleware";
 import { broadcastStatsUpdate } from "../socket/socketServer";
 import { io } from "../index";
 import { rolesMiddleware } from "../middlewares/rolesMiddleware";
+import parseFiltersFromQuery from "../utils/parseFiltersFromQuery";
 
 export const materiController = new Elysia({ prefix: "/api/materi" })
   .use(authMiddleware)
   .use(rolesMiddleware(["superadmin", "admin", "guest"]))
+
   .get("/", async ({ query, user }) => {
-    // Extract pagination and filter parameters
-    const page = parseInt(query.page as string) || 1;
-    const limit = parseInt(query.limit as string) || 10;
-    const search = (query.search as string) || "";
-    const status = (query.status as string) || "";
-    const brand = (query.brand as string) || "";
-    const cluster = (query.cluster as string) || "";
-    const fitur = (query.fitur as string) || "";
-    const jenis = (query.jenis as string) || "";
-    const startDate = (query.start_date as string) || "";
-    const endDate = (query.end_date as string) || "";
-    const onlyVisualDocs = query.only_visual_docs === "true";
+    try {
+      const page = parseInt(query.page as string);
+      const limit = parseInt(query.limit as string);
+      const filters = parseFiltersFromQuery(query);
 
-    const filters = {
-      search,
-      status,
-      brand,
-      cluster,
-      fitur,
-      jenis,
-      start_date: startDate,
-      end_date: endDate,
-      only_visual_docs: onlyVisualDocs,
-    };
-
-    return await materiService.getPaginatedMateri(
-      page,
-      limit,
-      filters,
-      user.role
-    );
-  })
-  .get("/:id", async ({ params: { id }, user, set }) => {
-    const materi = await materiService.getMateriById(parseInt(id), user.role);
-    if (!materi) {
-      set.status = 404;
-      return { status: 404, message: "Materi tidak ditemukan" };
+      const result = await materiService.getPaginatedMateri(
+        page,
+        limit,
+        filters,
+        user.role
+      );
+      return result;
+    } catch (error) {
+      console.error("Error fetching materi:", error);
+      return {
+        error: "Failed to fetch materi",
+        message: error instanceof Error ? error.message : "Unknown error",
+      };
     }
-    return materi;
   })
+
+  .get("/with-stats", async ({ query, user }) => {
+    try {
+      const page = parseInt(query.page as string) || 1;
+      const limit = parseInt(query.limit as string) || 10;
+      const filters = parseFiltersFromQuery(query);
+
+      const result = await materiService.getPaginatedMateriWithStats(
+        page,
+        limit,
+        filters,
+        user.role
+      );
+      return result;
+    } catch (error) {
+      console.error("Error fetching materi with stats:", error);
+      return {
+        error: "Failed to fetch materi with stats",
+        message: error instanceof Error ? error.message : "Unknown error",
+      };
+    }
+  })
+
+  .get("/:id", async ({ params: { id }, user, set }) => {
+    try {
+      const materi = await materiService.getMateriById(parseInt(id), user.role);
+      if (!materi) {
+        set.status = 404;
+        return { status: 404, message: "Materi tidak ditemukan" };
+      }
+      return materi;
+    } catch (error) {
+      console.error("Error fetching materi by id:", error);
+      set.status = 500;
+      return {
+        error: "Failed to fetch materi",
+        message: error instanceof Error ? error.message : "Unknown error",
+      };
+    }
+  })
+
   .post("/", async ({ request, user, set }) => {
     try {
       const formData = await request.formData();
@@ -69,6 +92,7 @@ export const materiController = new Elysia({ prefix: "/api/materi" })
       };
     }
   })
+
   .put("/:id", async ({ params: { id }, request, user, set }) => {
     try {
       const formData = await request.formData();
@@ -93,6 +117,7 @@ export const materiController = new Elysia({ prefix: "/api/materi" })
       };
     }
   })
+
   .delete("/:id", async ({ params: { id }, set, user }) => {
     try {
       const result = await materiService.deleteMateri(parseInt(id));
@@ -109,30 +134,20 @@ export const materiController = new Elysia({ prefix: "/api/materi" })
     }
   });
 
-// Add new endpoint for manual stats refresh
 export const statsController = new Elysia()
   .use(authMiddleware)
   .use(rolesMiddleware(["superadmin", "admin", "guest"]))
-  .get("/api/stats", async ({ user }) => {
-    try {
-      const userMateri = await materiService.getAllMateri(user.role);
-      const now = new Date();
 
-      return {
-        total: userMateri.length,
-        fitur: userMateri.filter((m) => m.fitur && m.fitur.trim()).length,
-        komunikasi: userMateri.filter(
-          (m) => m.nama_materi && m.nama_materi.trim()
-        ).length,
-        aktif: userMateri.filter((m) => new Date(m.end_date) > now).length,
-        expired: userMateri.filter((m) => new Date(m.end_date) <= now).length,
-        dokumen: userMateri.filter(
-          (m) => m.dokumenMateri && m.dokumenMateri.length > 0
-        ).length,
-        lastUpdated: new Date().toISOString(),
-      };
+  .get("/api/stats", async ({ query, user }) => {
+    try {
+      const filters = parseFiltersFromQuery(query);
+      const stats = await materiService.getMateriStats(filters);
+      return stats;
     } catch (error) {
       console.error("Error fetching stats:", error);
-      return { error: "Failed to fetch stats" };
+      return {
+        error: "Failed to fetch stats",
+        message: error instanceof Error ? error.message : "Unknown error",
+      };
     }
   });
