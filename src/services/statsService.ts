@@ -1,6 +1,7 @@
 import { pool } from "../config/database";
 import { RowDataPacket } from "mysql2";
 import { Role } from "../models/userModel";
+import * as materiModel from "../models/materiModel";
 
 interface PaginationFilters {
   search?: string;
@@ -22,6 +23,15 @@ interface CompleteStatsResult {
   total: number;
   dokumen: number;
   lastUpdated: string;
+}
+
+export async function getMonthlyStats(filters: any, userRole: string) {
+  try {
+    const monthlyData = await materiModel.getDetailedMonthlyStats(filters);
+    return monthlyData;
+  } catch (error) {
+    throw error;
+  }
 }
 
 function buildWhereClause(

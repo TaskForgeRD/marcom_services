@@ -1,3 +1,4 @@
+// src/socket/socketServer.ts - Fix untuk TypeScript error
 import { Server, Socket } from "socket.io";
 import { Server as HttpServer } from "http";
 import jwt from "jsonwebtoken";
@@ -42,6 +43,10 @@ export function setupSocketIO(httpServer: HttpServer) {
 
     socket.on("request_stats", async () => {
       try {
+        if (!socket.role) {
+          socket.emit("stats_error", { message: "User role not found" });
+          return;
+        }
         const stats = await getStats(socket.role);
         socket.emit("stats_update", stats);
       } catch (error) {
@@ -51,6 +56,10 @@ export function setupSocketIO(httpServer: HttpServer) {
 
     socket.on("request_stats_with_filters", async (filters: any) => {
       try {
+        if (!socket.role) {
+          socket.emit("stats_error", { message: "User role not found" });
+          return;
+        }
         const stats = await getStatsWithFilters(filters, socket.role);
         socket.emit("stats_update", stats);
       } catch (error) {
@@ -60,10 +69,49 @@ export function setupSocketIO(httpServer: HttpServer) {
       }
     });
 
+    socket.on("request_monthly_stats", async () => {
+      try {
+        if (!socket.role) {
+          socket.emit("stats_error", { message: "User role not found" });
+          return;
+        }
+        const monthlyStats = await getMonthlyStats(socket.role);
+        socket.emit("monthly_stats_update", monthlyStats);
+      } catch (error) {
+        socket.emit("stats_error", {
+          message: "Failed to fetch monthly stats",
+        });
+      }
+    });
+
+    socket.on("request_monthly_stats_with_filters", async (filters: any) => {
+      try {
+        if (!socket.role) {
+          socket.emit("stats_error", { message: "User role not found" });
+          return;
+        }
+        const monthlyStats = await getMonthlyStatsWithFilters(
+          filters,
+          socket.role
+        );
+        socket.emit("monthly_stats_update", monthlyStats);
+      } catch (error) {
+        socket.emit("stats_error", {
+          message: "Failed to fetch filtered monthly stats",
+        });
+      }
+    });
+
     socket.on("refresh_stats", async () => {
       try {
+        if (!socket.role) {
+          socket.emit("stats_error", { message: "User role not found" });
+          return;
+        }
         const stats = await getStats(socket.role);
+        const monthlyStats = await getMonthlyStats(socket.role);
         socket.emit("stats_update", stats);
+        socket.emit("monthly_stats_update", monthlyStats);
       } catch (error) {
         socket.emit("stats_error", { message: "Failed to refresh stats" });
       }
@@ -75,7 +123,7 @@ export function setupSocketIO(httpServer: HttpServer) {
   return io;
 }
 
-async function getStats(userRole: UserPayload["role"]) {
+async function getStats(userRole: Role) {
   try {
     const stats = await statsService.getCompleteStats({}, userRole);
     return stats;
@@ -84,13 +132,28 @@ async function getStats(userRole: UserPayload["role"]) {
   }
 }
 
-async function getStatsWithFilters(
-  filters: any,
-  userRole: UserPayload["role"]
-) {
+async function getStatsWithFilters(filters: any, userRole: Role) {
   try {
     const stats = await statsService.getCompleteStats(filters, userRole);
     return stats;
+  } catch (error) {
+    throw error;
+  }
+}
+
+async function getMonthlyStats(userRole: Role) {
+  try {
+    const monthlyStats = await statsService.getMonthlyStats({}, userRole);
+    return monthlyStats;
+  } catch (error) {
+    throw error;
+  }
+}
+
+async function getMonthlyStatsWithFilters(filters: any, userRole: Role) {
+  try {
+    const monthlyStats = await statsService.getMonthlyStats(filters, userRole);
+    return monthlyStats;
   } catch (error) {
     throw error;
   }
@@ -102,11 +165,23 @@ export async function broadcastStatsUpdate(
   filters?: any
 ) {
   try {
+    if (!userRole) {
+      console.error("User role is required for broadcasting stats");
+      return;
+    }
+
     const stats = filters
       ? await getStatsWithFilters(filters, userRole)
       : await getStats(userRole);
+
+    const monthlyStats = filters
+      ? await getMonthlyStatsWithFilters(filters, userRole)
+      : await getMonthlyStats(userRole);
+
     io.to(`user`).emit("stats_update", stats);
+    io.to(`user`).emit("monthly_stats_update", monthlyStats);
   } catch (error) {
+    console.error("Error broadcasting stats update:", error);
     throw error;
   }
 }

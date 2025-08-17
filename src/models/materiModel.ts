@@ -30,6 +30,188 @@ interface StatsResult {
   dokumen: number;
 }
 
+export async function getDetailedMonthlyStats(
+  filters: PaginationFilters
+): Promise<{
+  total: Array<{ month: string; value: number }>;
+  fitur: Array<{ month: string; value: number }>;
+  komunikasi: Array<{ month: string; value: number }>;
+  aktif: Array<{ month: string; value: number }>;
+  expired: Array<{ month: string; value: number }>;
+  dokumen: Array<{ month: string; value: number }>;
+}> {
+  const { whereClause, queryParams } = buildWhereClause(filters, false);
+
+  const query = `
+    SELECT 
+      MONTH(m.start_date) as month_num,
+      MONTHNAME(m.start_date) as month_name,
+      COUNT(DISTINCT m.id) as total,
+      COUNT(DISTINCT CASE WHEN f.id IS NOT NULL THEN m.id END) as fitur,
+      COUNT(DISTINCT CASE WHEN m.nama_materi IS NOT NULL AND m.nama_materi != '' THEN m.id END) as komunikasi,
+      COUNT(DISTINCT CASE WHEN m.end_date > CURDATE() THEN m.id END) as aktif,
+      COUNT(DISTINCT CASE WHEN m.end_date <= CURDATE() THEN m.id END) as expired,
+      COUNT(DISTINCT CASE WHEN dm.id IS NOT NULL THEN m.id END) as dokumen
+    FROM materi m
+    JOIN brand b ON m.brand_id = b.id
+    JOIN cluster c ON m.cluster_id = c.id
+    LEFT JOIN fitur f ON m.fitur_id = f.id
+    LEFT JOIN jenis j ON m.jenis_id = j.id
+    LEFT JOIN dokumen_materi dm ON m.id = dm.materi_id
+    LEFT JOIN dokumen_materi_keyword dmk ON dm.id = dmk.dokumen_materi_id
+    ${whereClause}
+    AND YEAR(m.start_date) = YEAR(CURDATE())
+    GROUP BY MONTH(m.start_date), MONTHNAME(m.start_date)
+    ORDER BY MONTH(m.start_date)
+  `;
+
+  const [rows] = await pool.query(query, queryParams);
+  const results = rows as any[];
+
+  const monthNames = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
+
+  const categories = [
+    "total",
+    "fitur",
+    "komunikasi",
+    "aktif",
+    "expired",
+    "dokumen",
+  ] as const;
+  const monthlyStats = {} as any;
+
+  categories.forEach((category) => {
+    monthlyStats[category] = monthNames.map((monthName, index) => {
+      const found = results.find((row) => row.month_num === index + 1);
+      return {
+        month: monthName,
+        value: found ? found[category] : 0,
+      };
+    });
+  });
+
+  return monthlyStats;
+}
+
+export async function getMonthlyStats(
+  filters: PaginationFilters
+): Promise<Array<{ month: string; value: number }>> {
+  const { whereClause, queryParams } = buildWhereClause(filters, false);
+
+  const query = `
+    SELECT 
+      MONTH(m.start_date) as month_num,
+      MONTHNAME(m.start_date) as month_name,
+      COUNT(DISTINCT m.id) as value
+    FROM materi m
+    JOIN brand b ON m.brand_id = b.id
+    JOIN cluster c ON m.cluster_id = c.id
+    LEFT JOIN fitur f ON m.fitur_id = f.id
+    LEFT JOIN jenis j ON m.jenis_id = j.id
+    LEFT JOIN dokumen_materi dm ON m.id = dm.materi_id
+    LEFT JOIN dokumen_materi_keyword dmk ON dm.id = dmk.dokumen_materi_id
+    ${whereClause}
+    AND YEAR(m.start_date) = YEAR(CURDATE())
+    GROUP BY MONTH(m.start_date), MONTHNAME(m.start_date)
+    ORDER BY MONTH(m.start_date)
+  `;
+
+  const [rows] = await pool.query(query, queryParams);
+
+  const monthNames = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
+
+  const results = rows as any[];
+  const monthlyData = monthNames.map((monthName, index) => {
+    const found = results.find((row) => row.month_num === index + 1);
+    return {
+      month: monthName,
+      value: found ? found.value : 0,
+    };
+  });
+
+  return monthlyData;
+}
+
+export async function getMonthlyStatsByYear(
+  filters: PaginationFilters,
+  year?: number
+): Promise<Array<{ month: string; value: number }>> {
+  const { whereClause, queryParams } = buildWhereClause(filters, false);
+  const targetYear = year || new Date().getFullYear();
+
+  const query = `
+    SELECT 
+      MONTH(m.start_date) as month_num,
+      MONTHNAME(m.start_date) as month_name,
+      COUNT(DISTINCT m.id) as value
+    FROM materi m
+    JOIN brand b ON m.brand_id = b.id
+    JOIN cluster c ON m.cluster_id = c.id
+    LEFT JOIN fitur f ON m.fitur_id = f.id
+    LEFT JOIN jenis j ON m.jenis_id = j.id
+    LEFT JOIN dokumen_materi dm ON m.id = dm.materi_id
+    LEFT JOIN dokumen_materi_keyword dmk ON dm.id = dmk.dokumen_materi_id
+    ${whereClause}
+    AND YEAR(m.start_date) = ?
+    GROUP BY MONTH(m.start_date), MONTHNAME(m.start_date)
+    ORDER BY MONTH(m.start_date)
+  `;
+
+  const [rows] = await pool.query(query, [...queryParams, targetYear]);
+
+  const monthNames = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
+
+  const results = rows as any[];
+  const monthlyData = monthNames.map((monthName, index) => {
+    const found = results.find((row) => row.month_num === index + 1);
+    return {
+      month: monthName,
+      value: found ? found.value : 0,
+    };
+  });
+
+  return monthlyData;
+}
+
 function buildMateriFromRows(rows: any[], hideFields: Array<string> = []) {
   const materiMap = new Map<number, any>();
 
