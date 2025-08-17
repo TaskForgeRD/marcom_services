@@ -74,7 +74,7 @@ function buildMateriFromRows(rows: any[], hideFields: Array<string> = []) {
 
 function buildWhereClause(
   filters: PaginationFilters,
-  excludeExpired: boolean = true // Parameter baru untuk mengontrol filter expired
+  excludeExpired: boolean = true
 ): {
   whereClause: string;
   queryParams: any[];
@@ -82,7 +82,6 @@ function buildWhereClause(
   const whereConditions: string[] = [];
   const queryParams: any[] = [];
 
-  // Filter default untuk mengecualikan data expired (kecuali jika diminta khusus)
   if (excludeExpired) {
     whereConditions.push(`m.end_date > CURDATE()`);
   }
@@ -100,17 +99,13 @@ function buildWhereClause(
     queryParams.push(searchTerm, searchTerm);
   }
 
-  // Modifikasi filter status untuk menangani expired secara eksplisit
   if (filters.status && !filters.status.toLowerCase().includes("semua")) {
     if (filters.status.toLowerCase() === "aktif") {
-      // Jika sudah ada filter excludeExpired, tidak perlu menambahkan lagi
       if (!excludeExpired) {
         whereConditions.push(`m.end_date > CURDATE()`);
       }
     } else if (filters.status.toLowerCase() === "expired") {
-      // Jika user meminta expired secara eksplisit, override excludeExpired
       if (excludeExpired) {
-        // Hapus kondisi excludeExpired yang sudah ditambahkan
         const expiredConditionIndex = whereConditions.findIndex((condition) =>
           condition.includes("m.end_date > CURDATE()")
         );

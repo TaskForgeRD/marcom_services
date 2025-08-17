@@ -1,4 +1,3 @@
-// src/services/statsService.ts
 import { pool } from "../config/database";
 import { RowDataPacket } from "mysql2";
 import { Role } from "../models/userModel";
@@ -35,7 +34,6 @@ function buildWhereClause(
   const whereConditions: string[] = [];
   const queryParams: any[] = [];
 
-  // Default filter - hanya apply jika tidak ada filter status eksplisit
   if (excludeExpired && !filters.status) {
     whereConditions.push(`m.end_date > CURDATE()`);
   }
@@ -108,13 +106,8 @@ export async function getCompleteStats(
   userRole?: Role
 ): Promise<CompleteStatsResult> {
   try {
-    // Query 1: Jumlah Fitur
     const fiturCount = await getFiturCount(filters);
-
-    // Query 2: Materi Komunikasi, Aktif, dan Expired
     const materiStats = await getMateriStats(filters);
-
-    // Query 3: Jumlah Dokumen
     const dokumenCount = await getDokumenCount(filters);
 
     return {
@@ -127,12 +120,10 @@ export async function getCompleteStats(
       lastUpdated: new Date().toISOString(),
     };
   } catch (error) {
-    console.error("Error getting complete stats:", error);
     throw error;
   }
 }
 
-// Query 1: Jumlah Fitur
 async function getFiturCount(filters: PaginationFilters): Promise<number> {
   const { whereClause, queryParams } = buildWhereClause(filters);
 
@@ -153,7 +144,6 @@ async function getFiturCount(filters: PaginationFilters): Promise<number> {
   return (result as any[])[0].fitur_count || 0;
 }
 
-// Query 2: Materi Komunikasi, Aktif, dan Expired
 async function getMateriStats(filters: PaginationFilters): Promise<{
   komunikasi: number;
   aktif: number;
@@ -189,7 +179,6 @@ async function getMateriStats(filters: PaginationFilters): Promise<{
   };
 }
 
-// Query 3: Jumlah Dokumen
 async function getDokumenCount(filters: PaginationFilters): Promise<number> {
   const { whereClause, queryParams } = buildWhereClause(filters);
 

@@ -41,13 +41,10 @@ export async function findUserByEmail(email: string): Promise<User | null> {
   return users.length > 0 ? users[0] : null;
 }
 
-// FIXED: Perbaiki query dan parameter yang sesuai dengan jumlah kolom
 export async function createUser(
   userData: Omit<User, "id" | "created_at" | "updated_at">
 ): Promise<number> {
   try {
-    // Query dengan 5 kolom tetapi parameter hanya 4 - INI MASALAHNYA!
-    // Perbaiki dengan menambahkan parameter role atau menghapus dari query
     const [result] = await pool.execute(
       `INSERT INTO users (google_id, email, name, avatar_url, role) 
        VALUES (?, ?, ?, ?, ?)`,
@@ -56,19 +53,16 @@ export async function createUser(
         userData.email,
         userData.name,
         userData.avatar_url || null,
-        userData.role || "guest", // Tambahkan parameter role yang hilang
+        userData.role || "guest",
       ]
     );
 
     return (result as any).insertId;
   } catch (error) {
-    console.error("Error creating user:", error);
-    console.error("User data:", userData);
     throw error;
   }
 }
 
-// ENHANCED: Perbaiki fungsi update dengan error handling yang lebih baik
 export async function updateUser(
   id: number,
   userData: Partial<User>
@@ -112,16 +106,12 @@ export async function updateUser(
       );
     }
 
-    // Return updated user
     return await getUserById(id);
   } catch (error) {
-    console.error("Error updating user:", error);
-    console.error("Update data:", userData);
     throw error;
   }
 }
 
-// ENHANCED: Perbaiki query dengan include role
 export async function getAllUsers(): Promise<User[]> {
   try {
     const [rows] = await pool.query(
@@ -130,12 +120,10 @@ export async function getAllUsers(): Promise<User[]> {
 
     return rows as User[];
   } catch (error) {
-    console.error("Error fetching all users:", error);
     throw error;
   }
 }
 
-// ENHANCED: Delete user dengan error handling
 export async function deleteUser(id: number): Promise<void> {
   try {
     const [result] = await pool.execute("DELETE FROM users WHERE id = ?", [id]);
@@ -144,7 +132,6 @@ export async function deleteUser(id: number): Promise<void> {
       throw new Error("User not found or already deleted");
     }
   } catch (error) {
-    console.error("Error deleting user:", error);
     throw error;
   }
 }

@@ -133,21 +133,3 @@ export const materiController = new Elysia({ prefix: "/api/materi" })
       return { success: false, message: "Gagal menghapus data" };
     }
   });
-
-export const statsController = new Elysia()
-  .use(authMiddleware)
-  .use(rolesMiddleware(["superadmin", "admin", "guest"]))
-
-  .get("/api/stats", async ({ query, user }) => {
-    try {
-      const filters = parseFiltersFromQuery(query);
-      const stats = await materiService.getMateriStats(filters);
-      return stats;
-    } catch (error) {
-      console.error("Error fetching stats:", error);
-      return {
-        error: "Failed to fetch stats",
-        message: error instanceof Error ? error.message : "Unknown error",
-      };
-    }
-  });

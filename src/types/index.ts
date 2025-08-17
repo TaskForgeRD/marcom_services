@@ -1,4 +1,3 @@
-// types.ts
 export type Materi = {
   id?: number;
   user_id: number;

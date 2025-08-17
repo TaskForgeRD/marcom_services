@@ -1,4 +1,3 @@
-// src/socket/socketServer.ts
 import { Server, Socket } from "socket.io";
 import { Server as HttpServer } from "http";
 import jwt from "jsonwebtoken";
@@ -21,7 +20,6 @@ export function setupSocketIO(httpServer: HttpServer) {
     },
   });
 
-  // Authentication middleware for Socket.IO
   io.use(async (socket: AuthenticatedSocket, next) => {
     try {
       const token = socket.handshake.auth.token;
@@ -40,12 +38,8 @@ export function setupSocketIO(httpServer: HttpServer) {
   });
 
   io.on("connection", (socket: AuthenticatedSocket) => {
-    console.log(`User ${socket.userName} (${socket.userId}) connected`);
-
-    // Join user to their personal room
     socket.join(`user_${socket.userId}`);
 
-    // Send initial stats when user connects
     socket.on("request_stats", async () => {
       try {
         const stats = await getStats(socket.role);
@@ -55,7 +49,6 @@ export function setupSocketIO(httpServer: HttpServer) {
       }
     });
 
-    // Handle stats request with filters
     socket.on("request_stats_with_filters", async (filters: any) => {
       try {
         const stats = await getStatsWithFilters(filters, socket.role);
@@ -67,7 +60,6 @@ export function setupSocketIO(httpServer: HttpServer) {
       }
     });
 
-    // Handle stats refresh request
     socket.on("refresh_stats", async () => {
       try {
         const stats = await getStats(socket.role);
@@ -77,26 +69,21 @@ export function setupSocketIO(httpServer: HttpServer) {
       }
     });
 
-    socket.on("disconnect", () => {
-      console.log(`User ${socket.userName} (${socket.userId}) disconnected`);
-    });
+    socket.on("disconnect", () => {});
   });
 
   return io;
 }
 
-// Get statistics without filters
 async function getStats(userRole: UserPayload["role"]) {
   try {
     const stats = await statsService.getCompleteStats({}, userRole);
     return stats;
   } catch (error) {
-    console.error("Error getting stats:", error);
     throw error;
   }
 }
 
-// Get statistics with filters
 async function getStatsWithFilters(
   filters: any,
   userRole: UserPayload["role"]
@@ -105,12 +92,10 @@ async function getStatsWithFilters(
     const stats = await statsService.getCompleteStats(filters, userRole);
     return stats;
   } catch (error) {
-    console.error("Error getting filtered stats:", error);
     throw error;
   }
 }
 
-// Function to broadcast stats update to a specific user
 export async function broadcastStatsUpdate(
   io: Server,
   userRole: UserPayload["role"],
@@ -122,6 +107,6 @@ export async function broadcastStatsUpdate(
       : await getStats(userRole);
     io.to(`user`).emit("stats_update", stats);
   } catch (error) {
-    console.error("Error broadcasting stats update:", error);
+    throw error;
   }
 }
