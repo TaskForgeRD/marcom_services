@@ -16,7 +16,7 @@ export const materiController = new Elysia({ prefix: "/api/materi" })
       const limit = parseInt(query.limit as string);
       const filters = parseFiltersFromQuery(query);
 
-      const result = await materiService.getPaginatedMateri(
+      const result = await materiService.getMateri(
         page,
         limit,
         filters,
@@ -27,28 +27,6 @@ export const materiController = new Elysia({ prefix: "/api/materi" })
       console.error("Error fetching materi:", error);
       return {
         error: "Failed to fetch materi",
-        message: error instanceof Error ? error.message : "Unknown error",
-      };
-    }
-  })
-
-  .get("/with-stats", async ({ query, user }) => {
-    try {
-      const page = parseInt(query.page as string) || 1;
-      const limit = parseInt(query.limit as string) || 10;
-      const filters = parseFiltersFromQuery(query);
-
-      const result = await materiService.getPaginatedMateriWithStats(
-        page,
-        limit,
-        filters,
-        user.role
-      );
-      return result;
-    } catch (error) {
-      console.error("Error fetching materi with stats:", error);
-      return {
-        error: "Failed to fetch materi with stats",
         message: error instanceof Error ? error.message : "Unknown error",
       };
     }

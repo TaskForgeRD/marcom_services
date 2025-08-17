@@ -168,8 +168,6 @@ export const usersController = new Elysia({ prefix: "/api/users" })
       }
 
       console.log("Creating user with data:", { email, name, role: userRole });
-
-      // Create new user without google_id (will be set when they login)
       const userId = await userModel.createUser({
         google_id: "",
         email,

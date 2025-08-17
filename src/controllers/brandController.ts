@@ -28,7 +28,6 @@ export const brandController = new Elysia({ prefix: "/api/brands" })
           return { success: false, message: "Nama brand harus diisi" };
         }
 
-        // Check if brand already exists
         const existingBrand = await brandService.getBrandByName(name.trim());
         if (existingBrand) {
           set.status = 400;
@@ -69,7 +68,6 @@ export const brandController = new Elysia({ prefix: "/api/brands" })
           return { success: false, message: "Nama brand harus diisi" };
         }
 
-        // Check if brand with same name already exists (excluding current brand)
         const existingBrand = await brandService.getBrandByName(name.trim());
         if (existingBrand && existingBrand.id !== parseInt(id)) {
           set.status = 400;

@@ -49,7 +49,7 @@ function getHiddenFieldsByRole(role?: Role): Array<string> {
   }
 }
 
-export async function getPaginatedMateri(
+export async function getMateri(
   page: number,
   limit: number,
   filters: PaginationFilters,
@@ -79,37 +79,6 @@ export async function getPaginatedMateri(
     page,
     limit,
     totalPages: Math.ceil(total / limit),
-  };
-}
-
-export async function getPaginatedMateriWithStats(
-  page: number,
-  limit: number,
-  filters: PaginationFilters,
-  userRole?: Role
-): Promise<PaginatedResult & { stats: StatsResult }> {
-  const paginatedResult = await getPaginatedMateri(
-    page,
-    limit,
-    filters,
-    userRole
-  );
-  const stats = await getMateriStats(filters);
-
-  return {
-    ...paginatedResult,
-    stats,
-  };
-}
-
-export async function getMateriStats(
-  filters: PaginationFilters
-): Promise<StatsResult> {
-  const stats = await materiModel.calculateStats(filters);
-
-  return {
-    ...stats,
-    lastUpdated: new Date().toISOString(),
   };
 }
 
