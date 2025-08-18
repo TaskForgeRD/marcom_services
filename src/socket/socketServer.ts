@@ -152,6 +152,7 @@ async function getMonthlyStats(userRole: Role) {
 
 async function getMonthlyStatsWithFilters(filters: any, userRole: Role) {
   try {
+    console.log(filters);
     const monthlyStats = await statsService.getMonthlyStats(filters, userRole);
     return monthlyStats;
   } catch (error) {

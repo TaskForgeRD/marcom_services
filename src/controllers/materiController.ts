@@ -16,8 +16,6 @@ export const materiController = new Elysia({ prefix: "/api/materi" })
       const limit = parseInt(query.limit as string);
       const filters = parseFiltersFromQuery(query);
 
-      console.log(filters);
-
       const result = await materiService.getMateri(
         page,
         limit,
