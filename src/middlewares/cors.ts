@@ -1,3 +1,4 @@
+// middlewares/corsMiddleware.ts
 import { Elysia } from "elysia";
 
 export const corsMiddleware = new Elysia().onRequest(({ request, set }) => {

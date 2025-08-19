@@ -1,293 +1,127 @@
 import { pool } from "../config/database";
-import {
-  Materi,
-  DokumenMateri,
-  PaginationFilters,
-  PaginatedResult,
-} from "../types/";
+import { Materi, DokumenMateri } from "../types/";
 
-function buildWhereClause(
-  filters: PaginationFilters,
-  excludeExpired: boolean = true
-): {
-  whereClause: string;
-  queryParams: any[];
-} {
-  const whereConditions: string[] = [];
-  const queryParams: any[] = [];
+function hideFieldValue(
+  fields: Array<string>,
+  key: string,
+  value: any
+): string {
+  return fields.includes(key) ? "" : value;
+}
 
-  if (excludeExpired) {
-    whereConditions.push(`m.end_date > CURDATE()`);
-  }
+function buildMateriFromRows(rows: any[], hideFields: Array<string> = []) {
+  const materiMap = new Map<number, any>();
 
-  if (filters.search?.trim()) {
-    whereConditions.push(`(
-      m.nama_materi LIKE ? OR 
-      EXISTS (
-        SELECT 1 FROM dokumen_materi dm2 
-        JOIN dokumen_materi_keyword dmk2 ON dm2.id = dmk2.dokumen_materi_id 
-        WHERE dm2.materi_id = m.id AND dmk2.keyword LIKE ?
-      )
-    )`);
-    const searchTerm = `%${filters.search.trim()}%`;
-    queryParams.push(searchTerm, searchTerm);
-  }
-
-  if (filters.status && !filters.status.toLowerCase().includes("semua")) {
-    if (filters.status.toLowerCase() === "aktif") {
-      if (!excludeExpired) {
-        whereConditions.push(`m.end_date > CURDATE()`);
-      }
-    } else if (filters.status.toLowerCase() === "expired") {
-      if (excludeExpired) {
-        const expiredConditionIndex = whereConditions.findIndex((condition) =>
-          condition.includes("m.end_date > CURDATE()")
-        );
-        if (expiredConditionIndex !== -1) {
-          whereConditions.splice(expiredConditionIndex, 1);
-        }
-      }
-      whereConditions.push(`m.end_date <= CURDATE()`);
+  rows.forEach((row) => {
+    if (!materiMap.has(row.id)) {
+      materiMap.set(row.id, {
+        id: row.id,
+        user_id: row.user_id,
+        brand_id: row.brand_id,
+        brand: row.brand_name,
+        cluster_id: row.cluster_id,
+        cluster: row.cluster_name,
+        fitur_id: row.fitur_id,
+        fitur: row.fitur_name,
+        jenis_id: row.jenis_id,
+        jenis: row.jenis_name,
+        nama_materi: row.nama_materi,
+        start_date: row.start_date,
+        end_date: row.end_date,
+        periode: row.periode,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+        dokumenMateri: [],
+      });
     }
-  }
 
-  if (filters.brand && !filters.brand.toLowerCase().includes("semua")) {
-    whereConditions.push(`b.name = ?`);
-    queryParams.push(filters.brand);
-  }
+    // Tambahkan dokumen jika ada
+    if (row.dokumen_id) {
+      materiMap.get(row.id).dokumenMateri.push({
+        id: row.dokumen_id,
+        linkDokumen: hideFieldValue(
+          hideFields,
+          "link_dokumen",
+          row.link_dokumen
+        ),
+        thumbnail: row.thumbnail,
+        tipeMateri: row.tipe_materi,
+        keywords: row.keywords ? row.keywords.split(",") : [],
+      });
+    }
+  });
 
-  if (filters.cluster && !filters.cluster.toLowerCase().includes("semua")) {
-    whereConditions.push(`c.name = ?`);
-    queryParams.push(filters.cluster);
-  }
-
-  if (filters.fitur && !filters.fitur.toLowerCase().includes("semua")) {
-    whereConditions.push(`f.name = ?`);
-    queryParams.push(filters.fitur);
-  }
-
-  if (filters.jenis && !filters.jenis.toLowerCase().includes("semua")) {
-    whereConditions.push(`j.name = ?`);
-    queryParams.push(filters.jenis);
-  }
-
-  if (filters.start_date) {
-    whereConditions.push(`m.end_date >= ?`);
-    queryParams.push(new Date(filters.start_date).toISOString().split("T")[0]);
-  }
-
-  if (filters.end_date) {
-    whereConditions.push(`m.start_date <= ?`);
-    queryParams.push(new Date(filters.end_date).toISOString().split("T")[0]);
-  }
-
-  if (filters.only_visual_docs) {
-    whereConditions.push(`EXISTS (
-      SELECT 1 FROM dokumen_materi dm_visual 
-      WHERE dm_visual.materi_id = m.id AND dm_visual.tipe_materi = 'Key Visual'
-    )`);
-  }
-
-  const whereClause =
-    whereConditions.length > 0 ? `WHERE ${whereConditions.join(" AND ")}` : "";
-  return { whereClause, queryParams };
+  return Array.from(materiMap.values());
 }
 
-export async function countMateri(filters: PaginationFilters): Promise<number> {
-  const { whereClause, queryParams } = buildWhereClause(filters);
-
-  const query = `
-    SELECT COUNT(DISTINCT m.id) as total
-    FROM materi m
-    JOIN brand b ON m.brand_id = b.id
-    JOIN cluster c ON m.cluster_id = c.id
-    LEFT JOIN fitur f ON m.fitur_id = f.id
-    LEFT JOIN jenis j ON m.jenis_id = j.id
-    LEFT JOIN dokumen_materi dm ON m.id = dm.materi_id
-    LEFT JOIN dokumen_materi_keyword dmk ON dm.id = dmk.dokumen_materi_id
-    ${whereClause}
-  `;
-
-  const [result] = await pool.query(query, queryParams);
-  return (result as any[])[0].total;
-}
-
-// SOLUSI OPTIMASI: Hilangkan ORDER BY untuk mencapai O(n)
-export async function findMateriIds(
-  filters: PaginationFilters,
-  limit: number,
-  offset: number
-): Promise<number[]> {
-  const { whereClause, queryParams } = buildWhereClause(filters);
-
-  // Query tanpa ORDER BY = O(n) instead of O(n log n)
-  const query = `
-    SELECT DISTINCT m.id
-    FROM materi m
-    JOIN brand b ON m.brand_id = b.id
-    JOIN cluster c ON m.cluster_id = c.id
-    LEFT JOIN fitur f ON m.fitur_id = f.id
-    LEFT JOIN jenis j ON m.jenis_id = j.id
-    LEFT JOIN dokumen_materi dm ON m.id = dm.materi_id
-    LEFT JOIN dokumen_materi_keyword dmk ON dm.id = dmk.dokumen_materi_id
-    ${whereClause}
-    LIMIT ? OFFSET ?
-  `;
-
-  const [result] = await pool.query(query, [...queryParams, limit, offset]);
-  return (result as any[]).map((row) => row.id);
-}
-
-// Query 1: Ambil data materi utama berdasarkan IDs
-export async function findMateriDataByIds(ids: number[]): Promise<any[]> {
-  if (ids.length === 0) return [];
-
-  const placeholders = ids.map(() => "?").join(",");
-
-  const query = `
+export async function getAllMateri(hideFields: Array<string> = []) {
+  const [rows] = await pool.query(
+    `
     SELECT 
-      m.id,
-      m.user_id,
-      m.brand_id,
-      b.name AS brand,
-      m.cluster_id,
-      c.name AS cluster,
-      m.fitur_id,
-      f.name AS fitur,
-      m.jenis_id,
-      j.name AS jenis,
-      m.nama_materi,
-      m.start_date,
-      m.end_date,
-      m.periode,
-      m.created_at,
-      m.updated_at
-    FROM materi m
-    JOIN brand b ON m.brand_id = b.id
-    JOIN cluster c ON m.cluster_id = c.id
-    LEFT JOIN fitur f ON m.fitur_id = f.id
-    LEFT JOIN jenis j ON m.jenis_id = j.id
-    WHERE m.id IN (${placeholders})
-    ORDER BY m.updated_at DESC, m.created_at DESC
-  `;
-
-  const [result] = await pool.query(query, ids);
-  return result as any[];
-}
-
-// Query 2: Ambil semua dokumen materi berdasarkan materi IDs
-export async function findDokumenMateriByMateriIds(
-  materiIds: number[],
-  hideFields: Array<string> = []
-): Promise<any[]> {
-  if (materiIds.length === 0) return [];
-
-  const placeholders = materiIds.map(() => "?").join(",");
-
-  const query = `
-    SELECT 
-      dm.materi_id,
-      dm.id,
-      ${
-        hideFields.includes("link_dokumen") ? "''" : "dm.link_dokumen"
-      } as linkDokumen,
+      m.*, 
+      b.name AS brand_name, 
+      c.name AS cluster_name,
+      f.name AS fitur_name,
+      j.name AS jenis_name,
+      dm.id AS dokumen_id,
+      dm.link_dokumen,
       dm.thumbnail,
-      dm.tipe_materi as tipeMateri
-    FROM dokumen_materi dm
-    WHERE dm.materi_id IN (${placeholders})
-    ORDER BY dm.id
-  `;
+      dm.tipe_materi,
+      GROUP_CONCAT(dmk.keyword) AS keywords
+    FROM materi m
+    JOIN brand b ON m.brand_id = b.id
+    JOIN cluster c ON m.cluster_id = c.id
+    LEFT JOIN fitur f ON m.fitur_id = f.id
+    LEFT JOIN jenis j ON m.jenis_id = j.id
+    LEFT JOIN dokumen_materi dm ON m.id = dm.materi_id
+    LEFT JOIN dokumen_materi_keyword dmk ON dm.id = dmk.dokumen_materi_id
+    GROUP BY m.id, dm.id
+    ORDER BY m.created_at DESC
+  `
+  );
 
-  const [result] = await pool.query(query, materiIds);
-  return result as any[];
-}
-
-// Query 3: Ambil semua keywords berdasarkan materi IDs
-export async function findKeywordsByMateriIds(
-  materiIds: number[]
-): Promise<any[]> {
-  if (materiIds.length === 0) return [];
-
-  const placeholders = materiIds.map(() => "?").join(",");
-
-  const query = `
-    SELECT 
-      dm.materi_id,
-      dmk.dokumen_materi_id,
-      dmk.keyword
-    FROM dokumen_materi_keyword dmk
-    JOIN dokumen_materi dm ON dmk.dokumen_materi_id = dm.id
-    WHERE dm.materi_id IN (${placeholders})
-  `;
-
-  const [result] = await pool.query(query, materiIds);
-  return result as any[];
-}
-
-// Fungsi untuk menggabungkan semua data (kombinasi dari 3 query di atas)
-export async function findMateriByIds(
-  ids: number[],
-  hideFields: Array<string> = []
-): Promise<any[]> {
-  if (ids.length === 0) return [];
-
-  // Eksekusi 3 query secara paralel
-  const [materiData, dokumenData, keywordData] = await Promise.all([
-    findMateriDataByIds(ids),
-    findDokumenMateriByMateriIds(ids, hideFields),
-    findKeywordsByMateriIds(ids),
-  ]);
-
-  // Buat map untuk efisiensi lookup
-  const dokumenMap = new Map<number, any[]>();
-  const keywordMap = new Map<number, string[]>();
-
-  // Group dokumen by materi_id
-  dokumenData.forEach((doc) => {
-    if (!dokumenMap.has(doc.materi_id)) {
-      dokumenMap.set(doc.materi_id, []);
-    }
-    dokumenMap.get(doc.materi_id)!.push({
-      id: doc.id,
-      linkDokumen: doc.linkDokumen,
-      thumbnail: doc.thumbnail,
-      tipeMateri: doc.tipeMateri,
-      keywords: [],
-    });
-  });
-
-  // Group keywords by dokumen_materi_id
-  keywordData.forEach((kw) => {
-    if (!keywordMap.has(kw.dokumen_materi_id)) {
-      keywordMap.set(kw.dokumen_materi_id, []);
-    }
-    keywordMap.get(kw.dokumen_materi_id)!.push(kw.keyword);
-  });
-
-  // Assign keywords ke dokumen yang sesuai
-  dokumenMap.forEach((docs) => {
-    docs.forEach((doc) => {
-      doc.keywords = keywordMap.get(doc.id) || [];
-    });
-  });
-
-  // Combine data - sudah terurut dari materiQuery
-  return materiData.map((materi) => ({
-    ...materi,
-    dokumenMateri: dokumenMap.get(materi.id) || [],
-  }));
+  return buildMateriFromRows(rows as any[], hideFields);
 }
 
 export async function getMateriById(
   id: number,
   hideFields: Array<string> = []
 ) {
-  // Menggunakan pendekatan yang sama untuk single record
-  const result = await findMateriByIds([id], hideFields);
+  const [rows] = await pool.query(
+    `
+    SELECT 
+      m.*, 
+      b.name AS brand_name, 
+      c.name AS cluster_name,
+      f.name AS fitur_name,
+      j.name AS jenis_name,
+      dm.id AS dokumen_id,
+      dm.link_dokumen,
+      dm.thumbnail,
+      dm.tipe_materi,
+      GROUP_CONCAT(dmk.keyword) AS keywords
+    FROM materi m
+    JOIN brand b ON m.brand_id = b.id
+    JOIN cluster c ON m.cluster_id = c.id
+    LEFT JOIN fitur f ON m.fitur_id = f.id
+    LEFT JOIN jenis j ON m.jenis_id = j.id
+    LEFT JOIN dokumen_materi dm ON m.id = dm.materi_id
+    LEFT JOIN dokumen_materi_keyword dmk ON dm.id = dmk.dokumen_materi_id
+    WHERE m.id = ?
+    GROUP BY m.id, dm.id
+  `,
+    [id]
+  );
+
+  if (!rows || (rows as any[]).length === 0) {
+    return null;
+  }
+
+  const result = buildMateriFromRows(rows as any[], hideFields);
   return result.length > 0 ? result[0] : null;
 }
 
-export async function createMateri(materi: Materi): Promise<number> {
+export async function createMateri(materi: Materi) {
   const [result] = await pool.execute(
     `INSERT INTO materi (user_id, brand_id, cluster_id, fitur_id, nama_materi, jenis_id, start_date, end_date, periode)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -307,10 +141,7 @@ export async function createMateri(materi: Materi): Promise<number> {
   return (result as any).insertId;
 }
 
-export async function updateMateri(
-  id: number,
-  materi: Materi
-): Promise<boolean> {
+export async function updateMateri(id: number, materi: Materi) {
   const [result] = await pool.execute(
     `UPDATE materi 
      SET brand_id = ?, cluster_id = ?, fitur_id = ?, nama_materi = ?, jenis_id = ?, 
@@ -333,14 +164,42 @@ export async function updateMateri(
   return (result as any).affectedRows > 0;
 }
 
-export async function deleteMateri(id: number): Promise<boolean> {
+export async function deleteMateri(id: number) {
   const [result] = await pool.execute("DELETE FROM materi WHERE id = ?", [id]);
+
   return (result as any).affectedRows > 0;
 }
 
-export async function createDokumenMateri(
-  dokumen: DokumenMateri
-): Promise<number> {
+export async function getDokumenMateriByMateriId(materiId: number) {
+  const [rows] = await pool.query(
+    `
+    SELECT 
+      dm.*,
+      GROUP_CONCAT(dmk.keyword) AS keywords
+    FROM dokumen_materi dm
+    LEFT JOIN dokumen_materi_keyword dmk ON dm.id = dmk.dokumen_materi_id
+    WHERE dm.materi_id = ?
+    GROUP BY dm.id
+  `,
+    [materiId]
+  );
+
+  return (rows as any[]).map((row) => ({
+    ...row,
+    keywords: row.keywords ? row.keywords.split(",") : [],
+  }));
+}
+
+export async function getKeywordsByDokumenId(dokumenId: number) {
+  const [rows] = await pool.query(
+    "SELECT keyword FROM dokumen_materi_keyword WHERE dokumen_materi_id = ?",
+    [dokumenId]
+  );
+
+  return (rows as any[]).map((row) => row.keyword);
+}
+
+export async function createDokumenMateri(dokumen: DokumenMateri) {
   const [result] = await pool.execute(
     `INSERT INTO dokumen_materi (materi_id, link_dokumen, tipe_materi, thumbnail)
      VALUES (?, ?, ?, ?)`,
@@ -355,21 +214,62 @@ export async function createDokumenMateri(
   return (result as any).insertId;
 }
 
-export async function createKeyword(
-  dokumenId: number,
-  keyword: string
-): Promise<void> {
+export async function createKeyword(dokumenId: number, keyword: string) {
   await pool.execute(
     `INSERT INTO dokumen_materi_keyword (dokumen_materi_id, keyword) VALUES (?, ?)`,
     [dokumenId, keyword]
   );
 }
 
-export async function deleteDokumenByMateriId(materiId: number): Promise<void> {
+export async function updateDokumenKeywords(
+  dokumenId: number,
+  keywords: string[]
+) {
+  // Start transaction
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    // Delete existing keywords
+    await connection.execute(
+      "DELETE FROM dokumen_materi_keyword WHERE dokumen_materi_id = ?",
+      [dokumenId]
+    );
+
+    // Insert new keywords
+    if (keywords.length > 0) {
+      const values = keywords.map((keyword) => [dokumenId, keyword]);
+      await connection.query(
+        "INSERT INTO dokumen_materi_keyword (dokumen_materi_id, keyword) VALUES ?",
+        [values]
+      );
+    }
+
+    await connection.commit();
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
+
+export async function deleteDokumenKeywords(dokumenId: number) {
   await pool.execute(
-    `DELETE dmk FROM dokumen_materi_keyword dmk
-     JOIN dokumen_materi dm ON dmk.dokumen_materi_id = dm.id
-     WHERE dm.materi_id = ?`,
+    "DELETE FROM dokumen_materi_keyword WHERE dokumen_materi_id = ?",
+    [dokumenId]
+  );
+}
+
+export async function deleteDokumenByMateriId(materiId: number) {
+  // CASCADE delete will handle this automatically, but explicit is better
+  await pool.execute(
+    `
+    DELETE dmk FROM dokumen_materi_keyword dmk
+    JOIN dokumen_materi dm ON dmk.dokumen_materi_id = dm.id
+    WHERE dm.materi_id = ?
+  `,
     [materiId]
   );
 
@@ -378,20 +278,23 @@ export async function deleteDokumenByMateriId(materiId: number): Promise<void> {
   ]);
 }
 
-export async function getDokumenMateriByMateriId(
-  materiId: number
-): Promise<any[]> {
-  const [rows] = await pool.query(
-    `SELECT dm.*, JSON_ARRAYAGG(dmk.keyword) AS keywords
-     FROM dokumen_materi dm
-     LEFT JOIN dokumen_materi_keyword dmk ON dm.id = dmk.dokumen_materi_id
-     WHERE dm.materi_id = ?
-     GROUP BY dm.id`,
-    [materiId]
-  );
+// Helper functions for reference data
+export async function getAllFitur() {
+  const [rows] = await pool.query("SELECT * FROM fitur ORDER BY name");
+  return rows as any[];
+}
 
-  return (rows as any[]).map((row) => ({
-    ...row,
-    keywords: row.keywords && row.keywords[0] !== null ? row.keywords : [],
-  }));
+export async function getAllJenis() {
+  const [rows] = await pool.query("SELECT * FROM jenis ORDER BY name");
+  return rows as any[];
+}
+
+export async function getAllBrands() {
+  const [rows] = await pool.query("SELECT * FROM brand ORDER BY name");
+  return rows as any[];
+}
+
+export async function getAllClusters() {
+  const [rows] = await pool.query("SELECT * FROM cluster ORDER BY name");
+  return rows as any[];
 }

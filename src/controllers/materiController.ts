@@ -4,58 +4,28 @@ import { authMiddleware } from "../middlewares/authMiddleware";
 import { broadcastStatsUpdate } from "../socket/socketServer";
 import { io } from "../index";
 import { rolesMiddleware } from "../middlewares/rolesMiddleware";
-import parseFiltersFromQuery from "../utils/parseFiltersFromQuery";
 
 export const materiController = new Elysia({ prefix: "/api/materi" })
   .use(authMiddleware)
   .use(rolesMiddleware(["superadmin", "admin", "guest"]))
-
-  .get("/", async ({ query, user }) => {
-    try {
-      const page = parseInt(query.page as string);
-      const limit = parseInt(query.limit as string);
-      const filters = parseFiltersFromQuery(query);
-
-      const result = await materiService.getMateri(
-        page,
-        limit,
-        filters,
-        user.role
-      );
-
-      return result;
-    } catch (error) {
-      console.error("Error fetching materi:", error);
-      return {
-        error: "Failed to fetch materi",
-        message: error instanceof Error ? error.message : "Unknown error",
-      };
-    }
+  .get("/", async (ctx) => {
+    return await materiService.getAllMateri(ctx.user.role);
   })
-
   .get("/:id", async ({ params: { id }, user, set }) => {
-    try {
-      const materi = await materiService.getMateriById(parseInt(id), user.role);
-      if (!materi) {
-        set.status = 404;
-        return { status: 404, message: "Materi tidak ditemukan" };
-      }
-      return materi;
-    } catch (error) {
-      console.error("Error fetching materi by id:", error);
-      set.status = 500;
-      return {
-        error: "Failed to fetch materi",
-        message: error instanceof Error ? error.message : "Unknown error",
-      };
+    const materi = await materiService.getMateriById(parseInt(id), user.role);
+    if (!materi) {
+      set.status = 404;
+      return { status: 404, message: "Materi tidak ditemukan" };
     }
+    return materi;
   })
-
+  // .use(rolesMiddleware(["superadmin", "admin"]))
   .post("/", async ({ request, user, set }) => {
     try {
       const formData = await request.formData();
       const result = await materiService.createMateri(formData, user.userId);
 
+      // Broadcast stats update to user
       if (result.success) {
         await broadcastStatsUpdate(io, user.role);
       }
@@ -81,6 +51,7 @@ export const materiController = new Elysia({ prefix: "/api/materi" })
         user.userId
       );
 
+      // Broadcast stats update to user
       if (result.success) {
         await broadcastStatsUpdate(io, user.role);
       }
@@ -101,6 +72,7 @@ export const materiController = new Elysia({ prefix: "/api/materi" })
     try {
       const result = await materiService.deleteMateri(parseInt(id));
 
+      // Broadcast stats update to user
       if (result.success) {
         await broadcastStatsUpdate(io, user.role);
       }
@@ -110,5 +82,33 @@ export const materiController = new Elysia({ prefix: "/api/materi" })
       console.error("Error deleting materi:", error);
       set.status = 500;
       return { success: false, message: "Gagal menghapus data" };
+    }
+  });
+
+// Add new endpoint for manual stats refresh
+export const statsController = new Elysia()
+  .use(authMiddleware)
+  .use(rolesMiddleware(["superadmin", "admin", "guest"]))
+  .get("/api/stats", async () => {
+    try {
+      const userMateri = await materiService.getAllMateri();
+      const now = new Date();
+
+      return {
+        total: userMateri.length,
+        fitur: userMateri.filter((m) => m.fitur && m.fitur.trim()).length,
+        komunikasi: userMateri.filter(
+          (m) => m.nama_materi && m.nama_materi.trim()
+        ).length,
+        aktif: userMateri.filter((m) => new Date(m.end_date) > now).length,
+        expired: userMateri.filter((m) => new Date(m.end_date) <= now).length,
+        dokumen: userMateri.filter(
+          (m) => m.dokumenMateri && m.dokumenMateri.length > 0
+        ).length,
+        lastUpdated: new Date().toISOString(),
+      };
+    } catch (error) {
+      console.error("Error fetching stats:", error);
+      return { error: "Failed to fetch stats" };
     }
   });

@@ -1,93 +1,70 @@
-import * as statsModel from "../models/statsModel";
-import { Role } from "../models/userModel";
+import { pool } from "../config/database";
+import { RowDataPacket } from "mysql2";
 
-interface PaginationFilters {
-  search?: string;
-  status?: string;
-  brand?: string;
-  cluster?: string;
-  fitur?: string;
-  jenis?: string;
-  start_date?: string;
-  end_date?: string;
-  only_visual_docs?: boolean;
-}
-
-interface CompleteStatsResult {
+export interface UserStats {
+  userId: number;
+  total: number;
   fitur: number;
   komunikasi: number;
   aktif: number;
   expired: number;
-  total: number;
   dokumen: number;
-  lastUpdated: string;
+  lastUpdated: Date;
 }
 
-interface MonthlyStatsResult {
-  total: Array<{ month: string; value: number }>;
-  fitur: Array<{ month: string; value: number }>;
-  komunikasi: Array<{ month: string; value: number }>;
-  aktif: Array<{ month: string; value: number }>;
-  expired: Array<{ month: string; value: number }>;
-  dokumen: Array<{ month: string; value: number }>;
-}
-
-export async function getMonthlyStats(
-  filters: PaginationFilters,
-  userRole?: Role
-): Promise<MonthlyStatsResult> {
-  try {
-    return await statsModel.getDetailedMonthlyStats(filters);
-  } catch (error) {
-    throw new Error(`Failed to get monthly stats: ${error}`);
-  }
-}
-
-export async function getCompleteStats(
-  filters: PaginationFilters,
-  userRole?: Role
-): Promise<CompleteStatsResult> {
-  try {
-    return await statsModel.getCompleteStats(filters);
-  } catch (error) {
-    throw new Error(`Failed to get complete stats: ${error}`);
-  }
-}
-
-export async function getFiturCount(
-  filters: PaginationFilters,
-  userRole?: Role
-): Promise<number> {
-  try {
-    return await statsModel.getFiturCount(filters);
-  } catch (error) {
-    throw new Error(`Failed to get fitur count: ${error}`);
-  }
-}
-
-export async function getMateriStats(
-  filters: PaginationFilters,
-  userRole?: Role
-): Promise<{
+interface MateriStatsRow extends RowDataPacket {
+  total: number;
+  fitur: number;
   komunikasi: number;
   aktif: number;
   expired: number;
-  total: number;
-}> {
-  try {
-    return await statsModel.getMateriStats(filters);
-  } catch (error) {
-    throw new Error(`Failed to get materi stats: ${error}`);
-  }
 }
 
-export async function getDokumenCount(
-  filters: PaginationFilters,
-  userRole?: Role
-): Promise<number> {
+interface DokumenStatsRow extends RowDataPacket {
+  dokumen: number;
+}
+
+export async function getUserStats(userId: number): Promise<UserStats> {
   try {
-    return await statsModel.getDokumenCount(filters);
+    const [materiRows] = await pool.execute<MateriStatsRow[]>(
+      `
+      SELECT 
+        COUNT(*) as total,
+        SUM(CASE WHEN fitur IS NOT NULL AND fitur != '' THEN 1 ELSE 0 END) as fitur,
+        SUM(CASE WHEN nama_materi IS NOT NULL AND nama_materi != '' THEN 1 ELSE 0 END) as komunikasi,
+        SUM(CASE WHEN end_date > NOW() THEN 1 ELSE 0 END) as aktif,
+        SUM(CASE WHEN end_date <= NOW() THEN 1 ELSE 0 END) as expired
+      FROM materi 
+      WHERE user_id = ?
+    `,
+      [userId]
+    );
+
+    const [dokumenRows] = await pool.execute<DokumenStatsRow[]>(
+      `
+      SELECT COUNT(DISTINCT m.id) as dokumen
+      FROM materi m
+      INNER JOIN dokumen_materi dm ON m.id = dm.materi_id
+      WHERE m.user_id = ?
+    `,
+      [userId]
+    );
+
+    const materiStats = materiRows[0];
+    const dokumenStats = dokumenRows[0];
+
+    return {
+      userId,
+      total: materiStats.total || 0,
+      fitur: materiStats.fitur || 0,
+      komunikasi: materiStats.komunikasi || 0,
+      aktif: materiStats.aktif || 0,
+      expired: materiStats.expired || 0,
+      dokumen: dokumenStats.dokumen || 0,
+      lastUpdated: new Date(),
+    };
   } catch (error) {
-    throw new Error(`Failed to get dokumen count: ${error}`);
+    console.error("Error getting user stats:", error);
+    throw error;
   }
 }
