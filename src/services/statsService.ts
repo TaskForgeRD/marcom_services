@@ -42,11 +42,11 @@ export async function getUserStats(userId: number): Promise<UserStats> {
 
     const [dokumenRows] = await pool.execute<DokumenStatsRow[]>(
       `
-      SELECT COUNT(DISTINCT m.id) as dokumen
-      FROM materi m
-      INNER JOIN dokumen_materi dm ON m.id = dm.materi_id
-      WHERE m.user_id = ?
-    `,
+  SELECT COUNT(dm.id) as dokumen  // ← Ganti dengan ini
+  FROM materi m
+  INNER JOIN dokumen_materi dm ON m.id = dm.materi_id
+  WHERE m.user_id = ?
+`,
       [userId]
     );
 

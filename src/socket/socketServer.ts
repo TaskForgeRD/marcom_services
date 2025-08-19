@@ -87,9 +87,9 @@ async function getStats(userRole: UserPayload["role"]) {
       ).length,
       aktif: userMateri.filter((m) => new Date(m.end_date) > now).length,
       expired: userMateri.filter((m) => new Date(m.end_date) <= now).length,
-      dokumen: userMateri.filter(
-        (m) => m.dokumenMateri && m.dokumenMateri.length > 0
-      ).length,
+      dokumen: userMateri.reduce((total, m) => {
+        return total + (m.dokumenMateri ? m.dokumenMateri.length : 0);
+      }, 0),
       lastUpdated: new Date().toISOString(),
     };
 
