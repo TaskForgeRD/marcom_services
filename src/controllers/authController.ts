@@ -11,6 +11,7 @@ const REDIRECT_URI =
 
 export const authController = new Elysia({ prefix: "/api/auth" })
   .get("/google", () => {
+    console.log("Google OAuth login initiated");
     const googleAuthUrl = new URL(
       "https://accounts.google.com/o/oauth2/v2/auth"
     );
@@ -31,12 +32,25 @@ export const authController = new Elysia({ prefix: "/api/auth" })
         return { success: false, message: "Authorization code is required" };
       }
 
+      console.log(
+        "Google OAuth callback started with code:",
+        code.substring(0, 20) + "..."
+      );
+
+      // Exchange code for access token
       const tokenRequestBody = new URLSearchParams({
         client_id: GOOGLE_CLIENT_ID,
         client_secret: GOOGLE_CLIENT_SECRET,
         code,
         grant_type: "authorization_code",
         redirect_uri: REDIRECT_URI,
+      });
+
+      console.log("Requesting token from Google with params:", {
+        client_id: GOOGLE_CLIENT_ID,
+        redirect_uri: REDIRECT_URI,
+        grant_type: "authorization_code",
+        // Don't log the actual code and secret
       });
 
       const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
@@ -48,8 +62,16 @@ export const authController = new Elysia({ prefix: "/api/auth" })
         body: tokenRequestBody.toString(),
       });
 
+      console.log("Google token response status:", tokenResponse.status);
+
       if (!tokenResponse.ok) {
         const errorText = await tokenResponse.text();
+        console.error("Google token request failed:", {
+          status: tokenResponse.status,
+          statusText: tokenResponse.statusText,
+          error: errorText,
+        });
+
         set.status = 400;
         return {
           success: false,
@@ -59,8 +81,16 @@ export const authController = new Elysia({ prefix: "/api/auth" })
       }
 
       const tokenData = await tokenResponse.json();
+      console.log("Token data received:", {
+        access_token: tokenData.access_token ? "present" : "missing",
+        token_type: tokenData.token_type,
+        expires_in: tokenData.expires_in,
+        error: tokenData.error,
+        error_description: tokenData.error_description,
+      });
 
       if (tokenData.error) {
+        console.error("Google OAuth error:", tokenData);
         set.status = 400;
         return {
           success: false,
@@ -72,6 +102,7 @@ export const authController = new Elysia({ prefix: "/api/auth" })
       }
 
       if (!tokenData.access_token) {
+        console.error("No access token in response:", tokenData);
         set.status = 400;
         return {
           success: false,
@@ -80,6 +111,8 @@ export const authController = new Elysia({ prefix: "/api/auth" })
         };
       }
 
+      // Get user info from Google
+      console.log("Fetching user info from Google...");
       const userResponse = await fetch(
         "https://www.googleapis.com/oauth2/v2/userinfo",
         {
@@ -92,6 +125,11 @@ export const authController = new Elysia({ prefix: "/api/auth" })
 
       if (!userResponse.ok) {
         const errorText = await userResponse.text();
+        console.error("Failed to fetch user info:", {
+          status: userResponse.status,
+          error: errorText,
+        });
+
         set.status = 400;
         return {
           success: false,
@@ -101,8 +139,15 @@ export const authController = new Elysia({ prefix: "/api/auth" })
       }
 
       const googleUser = await userResponse.json();
+      console.log("Google User received:", {
+        id: googleUser.id,
+        email: googleUser.email,
+        name: googleUser.name,
+        picture: googleUser.picture ? "present" : "missing",
+      });
 
       if (!googleUser.email) {
+        console.error("No email in Google user data:", googleUser);
         set.status = 400;
         return {
           success: false,
@@ -111,9 +156,13 @@ export const authController = new Elysia({ prefix: "/api/auth" })
         };
       }
 
+      // Check if user exists in database by email first
+      console.log("Checking if user exists in database...");
       let user = await userModel.findUserByEmail(googleUser.email);
 
       if (!user) {
+        // User doesn't exist in database - REJECT LOGIN
+        console.log("User not found in database:", googleUser.email);
         set.status = 403;
         return {
           success: false,
@@ -123,19 +172,35 @@ export const authController = new Elysia({ prefix: "/api/auth" })
         };
       }
 
+      console.log("User found in database:", {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        google_id: user.google_id ? "present" : "missing",
+      });
+
+      // User exists in database - check if google_id matches or needs to be updated
+      console.log("Checking Google ID match...");
+      console.log("Current user Google ID:", user.google_id);
       if (user.google_id !== googleUser.id) {
+        console.log("Updating user Google ID and profile...");
+        // Update google_id if it's different (for existing users who haven't linked Google yet)
         await userModel.updateUser(user.id!, {
           google_id: googleUser.id,
           name: googleUser.name,
           avatar_url: googleUser.picture,
         });
       } else {
+        console.log("Updating user profile...");
+        // Just update name and avatar if needed
         await userModel.updateUser(user.id!, {
           name: googleUser.name,
           avatar_url: googleUser.picture,
         });
       }
 
+      // Generate token for authenticated user
+      console.log("Generating authentication token...");
       const token = generateToken({
         userId: user.id!,
         email: user.email,
@@ -143,18 +208,24 @@ export const authController = new Elysia({ prefix: "/api/auth" })
         role: user.role,
       });
 
-      return {
+      const response = {
         success: true,
         token,
         user: {
           id: user.id,
           email: user.email,
           name: user.name,
-          avatar_url: googleUser.picture || user.avatar_url,
+          avatar_url: googleUser.picture || user.avatar_url, // Use updated avatar from Google
           role: user.role,
         },
       };
+
+      console.log("Authentication successful for user:", user.email);
+      return response;
     } catch (error) {
+      console.error("Google OAuth error:", error);
+
+      // More specific error handling
       if (error instanceof Error) {
         if (error.message.includes("fetch")) {
           set.status = 503;
@@ -185,6 +256,8 @@ export const authController = new Elysia({ prefix: "/api/auth" })
       };
     }
   })
+  // order matters
+  // protected routes
   .use(authMiddleware)
   .get("/me", ({ user }) => {
     return {

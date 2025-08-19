@@ -1,8 +1,8 @@
-// src/socket/socketServer.ts - Fix untuk TypeScript error
+// server/socketio/socketServer.ts
 import { Server, Socket } from "socket.io";
 import { Server as HttpServer } from "http";
 import jwt from "jsonwebtoken";
-import * as statsService from "../services/statsService";
+import * as materiService from "../services/materiService";
 import { UserPayload } from "../middlewares/authMiddleware";
 import { Role } from "../models/userModel";
 
@@ -21,6 +21,7 @@ export function setupSocketIO(httpServer: HttpServer) {
     },
   });
 
+  // Authentication middleware for Socket.IO
   io.use(async (socket: AuthenticatedSocket, next) => {
     try {
       const token = socket.handshake.auth.token;
@@ -39,14 +40,14 @@ export function setupSocketIO(httpServer: HttpServer) {
   });
 
   io.on("connection", (socket: AuthenticatedSocket) => {
+    console.log(`User ${socket.userName} (${socket.userId}) connected`);
+
+    // Join user to their personal room
     socket.join(`user_${socket.userId}`);
 
+    // Send initial stats when user connects
     socket.on("request_stats", async () => {
       try {
-        if (!socket.role) {
-          socket.emit("stats_error", { message: "User role not found" });
-          return;
-        }
         const stats = await getStats(socket.role);
         socket.emit("stats_update", stats);
       } catch (error) {
@@ -54,135 +55,60 @@ export function setupSocketIO(httpServer: HttpServer) {
       }
     });
 
-    socket.on("request_stats_with_filters", async (filters: any) => {
-      try {
-        if (!socket.role) {
-          socket.emit("stats_error", { message: "User role not found" });
-          return;
-        }
-        const stats = await getStatsWithFilters(filters, socket.role);
-        socket.emit("stats_update", stats);
-      } catch (error) {
-        socket.emit("stats_error", {
-          message: "Failed to fetch filtered stats",
-        });
-      }
-    });
-
-    socket.on("request_monthly_stats", async () => {
-      try {
-        if (!socket.role) {
-          socket.emit("stats_error", { message: "User role not found" });
-          return;
-        }
-        const monthlyStats = await getMonthlyStats(socket.role);
-        socket.emit("monthly_stats_update", monthlyStats);
-      } catch (error) {
-        socket.emit("stats_error", {
-          message: "Failed to fetch monthly stats",
-        });
-      }
-    });
-
-    socket.on("request_monthly_stats_with_filters", async (filters: any) => {
-      try {
-        if (!socket.role) {
-          socket.emit("stats_error", { message: "User role not found" });
-          return;
-        }
-        const monthlyStats = await getMonthlyStatsWithFilters(
-          filters,
-          socket.role
-        );
-        socket.emit("monthly_stats_update", monthlyStats);
-      } catch (error) {
-        socket.emit("stats_error", {
-          message: "Failed to fetch filtered monthly stats",
-        });
-      }
-    });
-
+    // Handle stats refresh request
     socket.on("refresh_stats", async () => {
       try {
-        if (!socket.role) {
-          socket.emit("stats_error", { message: "User role not found" });
-          return;
-        }
         const stats = await getStats(socket.role);
-        const monthlyStats = await getMonthlyStats(socket.role);
         socket.emit("stats_update", stats);
-        socket.emit("monthly_stats_update", monthlyStats);
       } catch (error) {
         socket.emit("stats_error", { message: "Failed to refresh stats" });
       }
     });
 
-    socket.on("disconnect", () => {});
+    socket.on("disconnect", () => {
+      console.log(`User ${socket.userName} (${socket.userId}) disconnected`);
+    });
   });
 
   return io;
 }
 
-async function getStats(userRole: Role) {
+// Get statistics
+async function getStats(userRole: UserPayload["role"]) {
   try {
-    const stats = await statsService.getCompleteStats({}, userRole);
+    const userMateri = await materiService.getAllMateri(userRole);
+
+    const now = new Date();
+    const stats = {
+      total: userMateri.length,
+      fitur: userMateri.filter((m) => m.fitur && m.fitur.trim()).length,
+      komunikasi: userMateri.filter(
+        (m) => m.nama_materi && m.nama_materi.trim()
+      ).length,
+      aktif: userMateri.filter((m) => new Date(m.end_date) > now).length,
+      expired: userMateri.filter((m) => new Date(m.end_date) <= now).length,
+      dokumen: userMateri.filter(
+        (m) => m.dokumenMateri && m.dokumenMateri.length > 0
+      ).length,
+      lastUpdated: new Date().toISOString(),
+    };
+
     return stats;
   } catch (error) {
+    console.error("Error getting personal stats:", error);
     throw error;
   }
 }
 
-async function getStatsWithFilters(filters: any, userRole: Role) {
-  try {
-    const stats = await statsService.getCompleteStats(filters, userRole);
-    return stats;
-  } catch (error) {
-    throw error;
-  }
-}
-
-async function getMonthlyStats(userRole: Role) {
-  try {
-    const monthlyStats = await statsService.getMonthlyStats({}, userRole);
-    return monthlyStats;
-  } catch (error) {
-    throw error;
-  }
-}
-
-async function getMonthlyStatsWithFilters(filters: any, userRole: Role) {
-  try {
-    console.log(filters);
-    const monthlyStats = await statsService.getMonthlyStats(filters, userRole);
-    return monthlyStats;
-  } catch (error) {
-    throw error;
-  }
-}
-
+// Function to broadcast stats update to a specific user
 export async function broadcastStatsUpdate(
   io: Server,
-  userRole: UserPayload["role"],
-  filters?: any
+  userRole: UserPayload["role"]
 ) {
   try {
-    if (!userRole) {
-      console.error("User role is required for broadcasting stats");
-      return;
-    }
-
-    const stats = filters
-      ? await getStatsWithFilters(filters, userRole)
-      : await getStats(userRole);
-
-    const monthlyStats = filters
-      ? await getMonthlyStatsWithFilters(filters, userRole)
-      : await getMonthlyStats(userRole);
-
+    const stats = await getStats(userRole);
     io.to(`user`).emit("stats_update", stats);
-    io.to(`user`).emit("monthly_stats_update", monthlyStats);
   } catch (error) {
     console.error("Error broadcasting stats update:", error);
-    throw error;
   }
 }

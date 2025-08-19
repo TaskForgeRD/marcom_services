@@ -1,3 +1,4 @@
+// services/materiService.ts
 import * as materiModel from "../models/materiModel";
 import * as brandService from "./brandService";
 import * as clusterService from "./clusterService";
@@ -8,27 +9,7 @@ import { validateMateriData } from "../utils/validation";
 import { Materi } from "../types/";
 import { Role } from "../models/userModel";
 
-interface PaginationFilters {
-  search?: string;
-  status?: string;
-  brand?: string;
-  cluster?: string;
-  fitur?: string;
-  jenis?: string;
-  start_date?: string;
-  end_date?: string;
-  only_visual_docs?: boolean;
-}
-
-interface PaginatedResult {
-  data: any[];
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
-}
-
-function getHiddenFieldsByRole(role?: Role): Array<string> {
+function getHiddenFieldByRole(role?: Role) {
   switch (role) {
     case "guest":
       return ["link_dokumen"];
@@ -39,56 +20,33 @@ function getHiddenFieldsByRole(role?: Role): Array<string> {
   }
 }
 
-export async function getMateri(
-  page: number,
-  limit: number,
-  filters: PaginationFilters,
-  userRole?: Role
-): Promise<PaginatedResult> {
-  try {
-    const hideFields = getHiddenFieldsByRole(userRole);
-
-    const offset = (page - 1) * limit;
-    const total = await materiModel.countMateri(filters);
-
-    if (total === 0) {
-      return {
-        data: [],
-        total,
-        page,
-        limit,
-        totalPages: 0,
-      };
-    }
-
-    const materiIds = await materiModel.findMateriIds(filters, limit, offset);
-    const data = await materiModel.findMateriByIds(materiIds, hideFields);
-
-    return {
-      data,
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
-    };
-  } catch (error) {
-    throw new Error(`Failed to get materi: ${error}`);
-  }
+// Jangan berdasarkan User ID, karena materi bisa diakses oleh banyak user
+export async function getAllMateri(userRole?: Role) {
+  const hiddenFields = getHiddenFieldByRole(userRole);
+  return await materiModel.getAllMateri(hiddenFields);
 }
 
 export async function getMateriById(id: number, userRole?: Role) {
-  try {
-    const hideFields = getHiddenFieldsByRole(userRole);
-    return await materiModel.getMateriById(id, hideFields);
-  } catch (error) {
-    throw new Error(`Failed to get materi by id: ${error}`);
-  }
+  const hiddenFields = getHiddenFieldByRole(userRole);
+  return await materiModel.getMateriById(id, hiddenFields);
 }
+// Jangan berdasarkan User ID, karena materi bisa diakses oleh banyak user
 
 export async function createMateri(formData: FormData, userId: number) {
   try {
-    const materiData = extractMateriDataFromForm(formData);
+    // Extract basic materi data
+    const materiData = {
+      brand: formData.get("brand") as string,
+      cluster: formData.get("cluster") as string,
+      fitur: formData.get("fitur") as string,
+      nama_materi: formData.get("nama_materi") as string,
+      jenis: formData.get("jenis") as string,
+      start_date: formData.get("start_date") as string,
+      end_date: formData.get("end_date") as string,
+      periode: (formData.get("periode") as string) || "0",
+    };
 
+    // Get brand, cluster, fitur, and jenis IDs
     const brandId = await brandService.getBrandIdByName(materiData.brand);
     const clusterId = await clusterService.getClusterIdByName(
       materiData.cluster
@@ -108,17 +66,62 @@ export async function createMateri(formData: FormData, userId: number) {
       periode: materiData.periode,
     };
 
+    // Validate data
     const validation = validateMateriData(materi);
     if (!validation.valid) {
       throw new Error(validation.message);
     }
 
+    // Create materi
     const materiId = await materiModel.createMateri(materi);
-    await processDokumenMateri(formData, materiId);
+
+    // Handle dokumen materi
+    const dokumenCount = parseInt(
+      (formData.get("dokumenMateriCount") as string) || "0"
+    );
+
+    for (let i = 0; i < dokumenCount; i++) {
+      const linkDokumen = formData.get(
+        `dokumenMateri[${i}][linkDokumen]`
+      ) as string;
+      const tipeMateri = formData.get(
+        `dokumenMateri[${i}][tipeMateri]`
+      ) as string;
+      const thumbnailFile = formData.get(
+        `dokumenMateri[${i}][thumbnail]`
+      ) as File;
+      const keywords = JSON.parse(
+        (formData.get(`dokumenMateri[${i}][keywords]`) as string) || "[]"
+      );
+
+      if (linkDokumen || thumbnailFile) {
+        let thumbnailPath = "";
+        if (thumbnailFile && thumbnailFile.size > 0) {
+          thumbnailPath = await saveFile(thumbnailFile);
+        }
+
+        const dokumenId = await materiModel.createDokumenMateri({
+          materi_id: materiId,
+          link_dokumen: linkDokumen || "",
+          tipe_materi: tipeMateri || "",
+          thumbnail: thumbnailPath,
+        });
+
+        // Add keywords
+        if (Array.isArray(keywords)) {
+          for (const keyword of keywords) {
+            if (keyword.trim()) {
+              await materiModel.createKeyword(dokumenId, keyword.trim());
+            }
+          }
+        }
+      }
+    }
 
     return { success: true, id: materiId, message: "Materi berhasil disimpan" };
   } catch (error) {
-    throw new Error(`Failed to create materi: ${error}`);
+    console.error("Error in createMateri:", error);
+    throw error;
   }
 }
 
@@ -128,19 +131,35 @@ export async function updateMateri(
   userId: number
 ) {
   try {
+    // Check if materi belongs to user
     const existingMateri = await materiModel.getMateriById(id);
     if (!existingMateri) {
       throw new Error("Materi tidak ditemukan atau Anda tidak memiliki akses");
     }
 
-    const materiData = extractMateriDataFromForm(formData);
+    // Extract basic materi data
+    const materiData = {
+      brand: formData.get("brand") as string,
+      cluster: formData.get("cluster") as string,
+      fitur: formData.get("fitur") as string,
+      nama_materi: formData.get("nama_materi") as string,
+      jenis: formData.get("jenis") as string,
+      start_date: formData.get("start_date") as string,
+      end_date: formData.get("end_date") as string,
+      periode: (formData.get("periode") as string) || "0",
+    };
 
+    // Get brand, cluster, fitur, and jenis IDs
     const brandId = await brandService.getBrandIdByName(materiData.brand);
     const clusterId = await clusterService.getClusterIdByName(
       materiData.cluster
     );
     const fiturId = await fiturService.getFiturIdByName(materiData.fitur);
     const jenisId = await jenisService.getJenisIdByName(materiData.jenis);
+
+    if (!brandId || !clusterId) {
+      throw new Error("Brand atau cluster tidak ditemukan");
+    }
 
     const materi: Materi = {
       user_id: userId,
@@ -154,25 +173,93 @@ export async function updateMateri(
       periode: materiData.periode,
     };
 
+    // Validate data
     const validation = validateMateriData(materi);
     if (!validation.valid) {
       throw new Error(validation.message);
     }
 
+    // Update materi
     await materiModel.updateMateri(id, materi);
 
+    // Get existing documents to preserve thumbnails
     const existingDokumens = await materiModel.getDokumenMateriByMateriId(id);
+
+    // Delete existing documents and keywords
     await materiModel.deleteDokumenByMateriId(id);
-    await processDokumenMateri(formData, id, existingDokumens);
+
+    // Handle new dokumen materi
+    const dokumenCount = parseInt(
+      (formData.get("dokumenMateriCount") as string) || "0"
+    );
+
+    for (let i = 0; i < dokumenCount; i++) {
+      const linkDokumen = formData.get(
+        `dokumenMateri[${i}][linkDokumen]`
+      ) as string;
+      const tipeMateri = formData.get(
+        `dokumenMateri[${i}][tipeMateri]`
+      ) as string;
+      const thumbnailFile = formData.get(
+        `dokumenMateri[${i}][thumbnail]`
+      ) as File;
+      const keywords = JSON.parse(
+        (formData.get(`dokumenMateri[${i}][keywords]`) as string) || "[]"
+      );
+
+      // Get existing thumbnail path from form data or find matching existing document
+      const existingThumbnailPath = formData.get(
+        `dokumenMateri[${i}][existingThumbnail]`
+      ) as string;
+
+      if (linkDokumen || thumbnailFile || existingThumbnailPath) {
+        let thumbnailPath = "";
+
+        if (thumbnailFile && thumbnailFile.size > 0) {
+          // New thumbnail uploaded
+          thumbnailPath = await saveFile(thumbnailFile);
+        } else if (existingThumbnailPath) {
+          // Use existing thumbnail path
+          thumbnailPath = existingThumbnailPath;
+        } else {
+          // Try to match with existing document by link or index
+          const existingDoc = existingDokumens.find(
+            (doc: any, index: number) =>
+              doc.link_dokumen === linkDokumen || index === i
+          );
+          if (existingDoc && existingDoc.thumbnail) {
+            thumbnailPath = existingDoc.thumbnail;
+          }
+        }
+
+        const dokumenId = await materiModel.createDokumenMateri({
+          materi_id: id,
+          link_dokumen: linkDokumen || "",
+          tipe_materi: tipeMateri || "",
+          thumbnail: thumbnailPath,
+        });
+
+        // Add keywords
+        if (Array.isArray(keywords)) {
+          for (const keyword of keywords) {
+            if (keyword.trim()) {
+              await materiModel.createKeyword(dokumenId, keyword.trim());
+            }
+          }
+        }
+      }
+    }
 
     return { success: true, message: "Materi berhasil diperbarui" };
   } catch (error) {
-    throw new Error(`Failed to update materi: ${error}`);
+    console.error("Error in updateMateri:", error);
+    throw error;
   }
 }
 
 export async function deleteMateri(id: number) {
   try {
+    // Check if materi belongs to user
     const existingMateri = await materiModel.getMateriById(id);
     if (!existingMateri) {
       throw new Error("Materi tidak ditemukan atau Anda tidak memiliki akses");
@@ -181,91 +268,7 @@ export async function deleteMateri(id: number) {
     await materiModel.deleteMateri(id);
     return { success: true, message: "Materi berhasil dihapus" };
   } catch (error) {
-    throw new Error(`Failed to delete materi: ${error}`);
+    console.error("Error in deleteMateri:", error);
+    throw error;
   }
-}
-
-function extractMateriDataFromForm(formData: FormData) {
-  return {
-    brand: formData.get("brand") as string,
-    cluster: formData.get("cluster") as string,
-    fitur: formData.get("fitur") as string,
-    nama_materi: formData.get("nama_materi") as string,
-    jenis: formData.get("jenis") as string,
-    start_date: formData.get("start_date") as string,
-    end_date: formData.get("end_date") as string,
-    periode: (formData.get("periode") as string) || "0",
-  };
-}
-
-async function processDokumenMateri(
-  formData: FormData,
-  materiId: number,
-  existingDokumens: any[] = []
-) {
-  const dokumenCount = parseInt(
-    (formData.get("dokumenMateriCount") as string) || "0"
-  );
-
-  for (let i = 0; i < dokumenCount; i++) {
-    const linkDokumen = formData.get(
-      `dokumenMateri[${i}][linkDokumen]`
-    ) as string;
-    const tipeMateri = formData.get(
-      `dokumenMateri[${i}][tipeMateri]`
-    ) as string;
-    const thumbnailFile = formData.get(
-      `dokumenMateri[${i}][thumbnail]`
-    ) as File;
-    const keywords = JSON.parse(
-      (formData.get(`dokumenMateri[${i}][keywords]`) as string) || "[]"
-    );
-
-    if (linkDokumen || thumbnailFile) {
-      let thumbnailPath = await processThumbnail(
-        thumbnailFile,
-        formData.get(`dokumenMateri[${i}][existingThumbnail]`) as string,
-        existingDokumens,
-        linkDokumen,
-        i
-      );
-
-      const dokumenId = await materiModel.createDokumenMateri({
-        materi_id: materiId,
-        link_dokumen: linkDokumen || "",
-        tipe_materi: tipeMateri || "",
-        thumbnail: thumbnailPath,
-      });
-
-      if (Array.isArray(keywords)) {
-        for (const keyword of keywords) {
-          if (keyword.trim()) {
-            await materiModel.createKeyword(dokumenId, keyword.trim());
-          }
-        }
-      }
-    }
-  }
-}
-
-async function processThumbnail(
-  thumbnailFile: File | null,
-  existingThumbnailPath: string,
-  existingDokumens: any[],
-  linkDokumen: string,
-  index: number
-): Promise<string> {
-  if (thumbnailFile && thumbnailFile.size > 0) {
-    return await saveFile(thumbnailFile);
-  }
-
-  if (existingThumbnailPath) {
-    return existingThumbnailPath;
-  }
-
-  const existingDoc = existingDokumens.find(
-    (doc: any, idx: number) => doc.link_dokumen === linkDokumen || idx === index
-  );
-
-  return existingDoc?.thumbnail || "";
 }
