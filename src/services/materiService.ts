@@ -28,16 +28,6 @@ interface PaginatedResult {
   totalPages: number;
 }
 
-interface StatsResult {
-  total: number;
-  aktif: number;
-  expired: number;
-  fitur: number;
-  komunikasi: number;
-  dokumen: number;
-  lastUpdated: string;
-}
-
 function getHiddenFieldsByRole(role?: Role): Array<string> {
   switch (role) {
     case "guest":
@@ -55,67 +45,81 @@ export async function getMateri(
   filters: PaginationFilters,
   userRole?: Role
 ): Promise<PaginatedResult> {
-  const hideFields = getHiddenFieldsByRole(userRole);
+  try {
+    const hideFields = getHiddenFieldsByRole(userRole);
 
-  const offset = (page - 1) * limit;
-  const total = await materiModel.countMateri(filters);
+    const offset = (page - 1) * limit;
+    const total = await materiModel.countMateri(filters);
 
-  if (total === 0) {
+    if (total === 0) {
+      return {
+        data: [],
+        total,
+        page,
+        limit,
+        totalPages: 0,
+      };
+    }
+
+    const materiIds = await materiModel.findMateriIds(filters, limit, offset);
+    const data = await materiModel.findMateriByIds(materiIds, hideFields);
+
     return {
-      data: [],
+      data,
       total,
       page,
       limit,
-      totalPages: 0,
+      totalPages: Math.ceil(total / limit),
     };
+  } catch (error) {
+    throw new Error(`Failed to get materi: ${error}`);
   }
-
-  const materiIds = await materiModel.findMateriIds(filters, limit, offset);
-  const data = await materiModel.findMateriByIds(materiIds, hideFields);
-
-  return {
-    data,
-    total,
-    page,
-    limit,
-    totalPages: Math.ceil(total / limit),
-  };
 }
 
 export async function getMateriById(id: number, userRole?: Role) {
-  const hideFields = getHiddenFieldsByRole(userRole);
-  return await materiModel.getMateriById(id, hideFields);
+  try {
+    const hideFields = getHiddenFieldsByRole(userRole);
+    return await materiModel.getMateriById(id, hideFields);
+  } catch (error) {
+    throw new Error(`Failed to get materi by id: ${error}`);
+  }
 }
 
 export async function createMateri(formData: FormData, userId: number) {
-  const materiData = extractMateriDataFromForm(formData);
+  try {
+    const materiData = extractMateriDataFromForm(formData);
 
-  const brandId = await brandService.getBrandIdByName(materiData.brand);
-  const clusterId = await clusterService.getClusterIdByName(materiData.cluster);
-  const fiturId = await fiturService.getFiturIdByName(materiData.fitur);
-  const jenisId = await jenisService.getJenisIdByName(materiData.jenis);
+    const brandId = await brandService.getBrandIdByName(materiData.brand);
+    const clusterId = await clusterService.getClusterIdByName(
+      materiData.cluster
+    );
+    const fiturId = await fiturService.getFiturIdByName(materiData.fitur);
+    const jenisId = await jenisService.getJenisIdByName(materiData.jenis);
 
-  const materi: Materi = {
-    user_id: userId,
-    brand_id: brandId,
-    cluster_id: clusterId,
-    fitur_id: fiturId,
-    nama_materi: materiData.nama_materi,
-    jenis_id: jenisId,
-    start_date: materiData.start_date,
-    end_date: materiData.end_date,
-    periode: materiData.periode,
-  };
+    const materi: Materi = {
+      user_id: userId,
+      brand_id: brandId,
+      cluster_id: clusterId,
+      fitur_id: fiturId,
+      nama_materi: materiData.nama_materi,
+      jenis_id: jenisId,
+      start_date: materiData.start_date,
+      end_date: materiData.end_date,
+      periode: materiData.periode,
+    };
 
-  const validation = validateMateriData(materi);
-  if (!validation.valid) {
-    throw new Error(validation.message);
+    const validation = validateMateriData(materi);
+    if (!validation.valid) {
+      throw new Error(validation.message);
+    }
+
+    const materiId = await materiModel.createMateri(materi);
+    await processDokumenMateri(formData, materiId);
+
+    return { success: true, id: materiId, message: "Materi berhasil disimpan" };
+  } catch (error) {
+    throw new Error(`Failed to create materi: ${error}`);
   }
-
-  const materiId = await materiModel.createMateri(materi);
-  await processDokumenMateri(formData, materiId);
-
-  return { success: true, id: materiId, message: "Materi berhasil disimpan" };
 }
 
 export async function updateMateri(
@@ -123,52 +127,62 @@ export async function updateMateri(
   formData: FormData,
   userId: number
 ) {
-  const existingMateri = await materiModel.getMateriById(id);
-  if (!existingMateri) {
-    throw new Error("Materi tidak ditemukan atau Anda tidak memiliki akses");
+  try {
+    const existingMateri = await materiModel.getMateriById(id);
+    if (!existingMateri) {
+      throw new Error("Materi tidak ditemukan atau Anda tidak memiliki akses");
+    }
+
+    const materiData = extractMateriDataFromForm(formData);
+
+    const brandId = await brandService.getBrandIdByName(materiData.brand);
+    const clusterId = await clusterService.getClusterIdByName(
+      materiData.cluster
+    );
+    const fiturId = await fiturService.getFiturIdByName(materiData.fitur);
+    const jenisId = await jenisService.getJenisIdByName(materiData.jenis);
+
+    const materi: Materi = {
+      user_id: userId,
+      brand_id: brandId,
+      cluster_id: clusterId,
+      fitur_id: fiturId,
+      nama_materi: materiData.nama_materi,
+      jenis_id: jenisId,
+      start_date: materiData.start_date,
+      end_date: materiData.end_date,
+      periode: materiData.periode,
+    };
+
+    const validation = validateMateriData(materi);
+    if (!validation.valid) {
+      throw new Error(validation.message);
+    }
+
+    await materiModel.updateMateri(id, materi);
+
+    const existingDokumens = await materiModel.getDokumenMateriByMateriId(id);
+    await materiModel.deleteDokumenByMateriId(id);
+    await processDokumenMateri(formData, id, existingDokumens);
+
+    return { success: true, message: "Materi berhasil diperbarui" };
+  } catch (error) {
+    throw new Error(`Failed to update materi: ${error}`);
   }
-
-  const materiData = extractMateriDataFromForm(formData);
-
-  const brandId = await brandService.getBrandIdByName(materiData.brand);
-  const clusterId = await clusterService.getClusterIdByName(materiData.cluster);
-  const fiturId = await fiturService.getFiturIdByName(materiData.fitur);
-  const jenisId = await jenisService.getJenisIdByName(materiData.jenis);
-
-  const materi: Materi = {
-    user_id: userId,
-    brand_id: brandId,
-    cluster_id: clusterId,
-    fitur_id: fiturId,
-    nama_materi: materiData.nama_materi,
-    jenis_id: jenisId,
-    start_date: materiData.start_date,
-    end_date: materiData.end_date,
-    periode: materiData.periode,
-  };
-
-  const validation = validateMateriData(materi);
-  if (!validation.valid) {
-    throw new Error(validation.message);
-  }
-
-  await materiModel.updateMateri(id, materi);
-
-  const existingDokumens = await materiModel.getDokumenMateriByMateriId(id);
-  await materiModel.deleteDokumenByMateriId(id);
-  await processDokumenMateri(formData, id, existingDokumens);
-
-  return { success: true, message: "Materi berhasil diperbarui" };
 }
 
 export async function deleteMateri(id: number) {
-  const existingMateri = await materiModel.getMateriById(id);
-  if (!existingMateri) {
-    throw new Error("Materi tidak ditemukan atau Anda tidak memiliki akses");
-  }
+  try {
+    const existingMateri = await materiModel.getMateriById(id);
+    if (!existingMateri) {
+      throw new Error("Materi tidak ditemukan atau Anda tidak memiliki akses");
+    }
 
-  await materiModel.deleteMateri(id);
-  return { success: true, message: "Materi berhasil dihapus" };
+    await materiModel.deleteMateri(id);
+    return { success: true, message: "Materi berhasil dihapus" };
+  } catch (error) {
+    throw new Error(`Failed to delete materi: ${error}`);
+  }
 }
 
 function extractMateriDataFromForm(formData: FormData) {

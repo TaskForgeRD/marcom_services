@@ -1,7 +1,5 @@
-import { pool } from "../config/database";
-import { RowDataPacket } from "mysql2";
+import * as statsModel from "../models/statsModel";
 import { Role } from "../models/userModel";
-import * as materiModel from "../models/materiModel";
 
 interface PaginationFilters {
   search?: string;
@@ -25,90 +23,24 @@ interface CompleteStatsResult {
   lastUpdated: string;
 }
 
-export async function getMonthlyStats(filters: any, userRole: string) {
-  try {
-    const monthlyData = await materiModel.getDetailedMonthlyStats(filters);
-    return monthlyData;
-  } catch (error) {
-    throw error;
-  }
+interface MonthlyStatsResult {
+  total: Array<{ month: string; value: number }>;
+  fitur: Array<{ month: string; value: number }>;
+  komunikasi: Array<{ month: string; value: number }>;
+  aktif: Array<{ month: string; value: number }>;
+  expired: Array<{ month: string; value: number }>;
+  dokumen: Array<{ month: string; value: number }>;
 }
 
-function buildWhereClause(
+export async function getMonthlyStats(
   filters: PaginationFilters,
-  excludeExpired: boolean = false
-): {
-  whereClause: string;
-  queryParams: any[];
-} {
-  const whereConditions: string[] = [];
-  const queryParams: any[] = [];
-
-  if (excludeExpired && !filters.status) {
-    whereConditions.push(`m.end_date > CURDATE()`);
+  userRole?: Role
+): Promise<MonthlyStatsResult> {
+  try {
+    return await statsModel.getDetailedMonthlyStats(filters);
+  } catch (error) {
+    throw new Error(`Failed to get monthly stats: ${error}`);
   }
-
-  if (filters.search?.trim()) {
-    whereConditions.push(`(
-      m.nama_materi LIKE ? OR 
-      EXISTS (
-        SELECT 1 FROM dokumen_materi dm2 
-        JOIN dokumen_materi_keyword dmk2 ON dm2.id = dmk2.dokumen_materi_id 
-        WHERE dm2.materi_id = m.id AND dmk2.keyword LIKE ?
-      )
-    )`);
-    const searchTerm = `%${filters.search.trim()}%`;
-    queryParams.push(searchTerm, searchTerm);
-  }
-
-  if (filters.status && !filters.status.toLowerCase().includes("semua")) {
-    if (filters.status.toLowerCase() === "aktif") {
-      whereConditions.push(`m.end_date > CURDATE()`);
-    } else if (filters.status.toLowerCase() === "expired") {
-      whereConditions.push(`m.end_date <= CURDATE()`);
-    }
-  }
-
-  if (filters.brand && !filters.brand.toLowerCase().includes("semua")) {
-    whereConditions.push(`b.name = ?`);
-    queryParams.push(filters.brand);
-  }
-
-  if (filters.cluster && !filters.cluster.toLowerCase().includes("semua")) {
-    whereConditions.push(`c.name = ?`);
-    queryParams.push(filters.cluster);
-  }
-
-  if (filters.fitur && !filters.fitur.toLowerCase().includes("semua")) {
-    whereConditions.push(`f.name = ?`);
-    queryParams.push(filters.fitur);
-  }
-
-  if (filters.jenis && !filters.jenis.toLowerCase().includes("semua")) {
-    whereConditions.push(`j.name = ?`);
-    queryParams.push(filters.jenis);
-  }
-
-  if (filters.start_date) {
-    whereConditions.push(`m.end_date >= ?`);
-    queryParams.push(new Date(filters.start_date).toISOString().split("T")[0]);
-  }
-
-  if (filters.end_date) {
-    whereConditions.push(`m.start_date <= ?`);
-    queryParams.push(new Date(filters.end_date).toISOString().split("T")[0]);
-  }
-
-  if (filters.only_visual_docs) {
-    whereConditions.push(`EXISTS (
-      SELECT 1 FROM dokumen_materi dm_visual 
-      WHERE dm_visual.materi_id = m.id AND dm_visual.tipe_materi = 'Key Visual'
-    )`);
-  }
-
-  const whereClause =
-    whereConditions.length > 0 ? `WHERE ${whereConditions.join(" AND ")}` : "";
-  return { whereClause, queryParams };
 }
 
 export async function getCompleteStats(
@@ -116,95 +48,46 @@ export async function getCompleteStats(
   userRole?: Role
 ): Promise<CompleteStatsResult> {
   try {
-    const fiturCount = await getFiturCount(filters);
-    const materiStats = await getMateriStats(filters);
-    const dokumenCount = await getDokumenCount(filters);
-
-    return {
-      fitur: fiturCount,
-      komunikasi: materiStats.komunikasi,
-      aktif: materiStats.aktif,
-      expired: materiStats.expired,
-      total: materiStats.total,
-      dokumen: dokumenCount,
-      lastUpdated: new Date().toISOString(),
-    };
+    return await statsModel.getCompleteStats(filters);
   } catch (error) {
-    throw error;
+    throw new Error(`Failed to get complete stats: ${error}`);
   }
 }
 
-async function getFiturCount(filters: PaginationFilters): Promise<number> {
-  const { whereClause, queryParams } = buildWhereClause(filters);
-
-  const query = `
-    SELECT COUNT(DISTINCT f.id) as fitur_count
-    FROM materi m
-    JOIN brand b ON m.brand_id = b.id
-    JOIN cluster c ON m.cluster_id = c.id
-    LEFT JOIN fitur f ON m.fitur_id = f.id
-    LEFT JOIN jenis j ON m.jenis_id = j.id
-    LEFT JOIN dokumen_materi dm ON m.id = dm.materi_id
-    LEFT JOIN dokumen_materi_keyword dmk ON dm.id = dmk.dokumen_materi_id
-    ${whereClause}
-    AND f.id IS NOT NULL
-  `;
-
-  const [result] = await pool.query(query, queryParams);
-  return (result as any[])[0].fitur_count || 0;
+export async function getFiturCount(
+  filters: PaginationFilters,
+  userRole?: Role
+): Promise<number> {
+  try {
+    return await statsModel.getFiturCount(filters);
+  } catch (error) {
+    throw new Error(`Failed to get fitur count: ${error}`);
+  }
 }
 
-async function getMateriStats(filters: PaginationFilters): Promise<{
+export async function getMateriStats(
+  filters: PaginationFilters,
+  userRole?: Role
+): Promise<{
   komunikasi: number;
   aktif: number;
   expired: number;
   total: number;
 }> {
-  const { whereClause, queryParams } = buildWhereClause(filters);
-
-  const query = `
-    SELECT 
-      COUNT(DISTINCT m.id) as total,
-      COUNT(DISTINCT CASE WHEN m.nama_materi IS NOT NULL AND m.nama_materi != '' THEN m.id END) as komunikasi,
-      COUNT(DISTINCT CASE WHEN m.end_date > CURDATE() THEN m.id END) as aktif,
-      COUNT(DISTINCT CASE WHEN m.end_date <= CURDATE() THEN m.id END) as expired
-    FROM materi m
-    JOIN brand b ON m.brand_id = b.id
-    JOIN cluster c ON m.cluster_id = c.id
-    LEFT JOIN fitur f ON m.fitur_id = f.id
-    LEFT JOIN jenis j ON m.jenis_id = j.id
-    LEFT JOIN dokumen_materi dm ON m.id = dm.materi_id
-    LEFT JOIN dokumen_materi_keyword dmk ON dm.id = dmk.dokumen_materi_id
-    ${whereClause}
-  `;
-
-  const [result] = await pool.query(query, queryParams);
-  const row = (result as any[])[0];
-
-  return {
-    komunikasi: row.komunikasi || 0,
-    aktif: row.aktif || 0,
-    expired: row.expired || 0,
-    total: row.total || 0,
-  };
+  try {
+    return await statsModel.getMateriStats(filters);
+  } catch (error) {
+    throw new Error(`Failed to get materi stats: ${error}`);
+  }
 }
 
-async function getDokumenCount(filters: PaginationFilters): Promise<number> {
-  const { whereClause, queryParams } = buildWhereClause(filters);
-
-  const query = `
-    SELECT COUNT(DISTINCT dm.id) as dokumen_count
-    FROM materi m
-    JOIN brand b ON m.brand_id = b.id
-    JOIN cluster c ON m.cluster_id = c.id
-    LEFT JOIN fitur f ON m.fitur_id = f.id
-    LEFT JOIN jenis j ON m.jenis_id = j.id
-    LEFT JOIN dokumen_materi dm ON m.id = dm.materi_id
-    LEFT JOIN dokumen_materi_keyword dmk ON dm.id = dmk.dokumen_materi_id
-    ${whereClause}
-    AND dm.id IS NOT NULL
-  `;
-
-  const [result] = await pool.query(query, queryParams);
-  return (result as any[])[0].dokumen_count || 0;
+export async function getDokumenCount(
+  filters: PaginationFilters,
+  userRole?: Role
+): Promise<number> {
+  try {
+    return await statsModel.getDokumenCount(filters);
+  } catch (error) {
+    throw new Error(`Failed to get dokumen count: ${error}`);
+  }
 }

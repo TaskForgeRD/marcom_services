@@ -1,110 +1,10 @@
 import { pool } from "../config/database";
-import { Materi, DokumenMateri } from "../types/";
-
-interface PaginationFilters {
-  search?: string;
-  status?: string;
-  brand?: string;
-  cluster?: string;
-  fitur?: string;
-  jenis?: string;
-  start_date?: string;
-  end_date?: string;
-  only_visual_docs?: boolean;
-}
-
-interface PaginatedResult {
-  data: any[];
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
-}
-
-interface StatsResult {
-  total: number;
-  aktif: number;
-  expired: number;
-  fitur: number;
-  komunikasi: number;
-  dokumen: number;
-}
-
-export async function getDetailedMonthlyStats(
-  filters: PaginationFilters
-): Promise<{
-  total: Array<{ month: string; value: number }>;
-  fitur: Array<{ month: string; value: number }>;
-  komunikasi: Array<{ month: string; value: number }>;
-  aktif: Array<{ month: string; value: number }>;
-  expired: Array<{ month: string; value: number }>;
-  dokumen: Array<{ month: string; value: number }>;
-}> {
-  const { whereClause, queryParams } = buildWhereClause(filters, false);
-
-  const query = `
-    SELECT 
-      MONTH(m.start_date) as month_num,
-      MONTHNAME(m.start_date) as month_name,
-      COUNT(DISTINCT m.id) as total,
-      COUNT(DISTINCT CASE WHEN f.id IS NOT NULL THEN m.id END) as fitur,
-      COUNT(DISTINCT CASE WHEN m.nama_materi IS NOT NULL AND m.nama_materi != '' THEN m.id END) as komunikasi,
-      COUNT(DISTINCT CASE WHEN m.end_date > CURDATE() THEN m.id END) as aktif,
-      COUNT(DISTINCT CASE WHEN m.end_date <= CURDATE() THEN m.id END) as expired,
-      COUNT(DISTINCT CASE WHEN dm.id IS NOT NULL THEN m.id END) as dokumen
-    FROM materi m
-    JOIN brand b ON m.brand_id = b.id
-    JOIN cluster c ON m.cluster_id = c.id
-    LEFT JOIN fitur f ON m.fitur_id = f.id
-    LEFT JOIN jenis j ON m.jenis_id = j.id
-    LEFT JOIN dokumen_materi dm ON m.id = dm.materi_id
-    LEFT JOIN dokumen_materi_keyword dmk ON dm.id = dmk.dokumen_materi_id
-    ${whereClause}
-    AND YEAR(m.start_date) = YEAR(CURDATE())
-    GROUP BY MONTH(m.start_date), MONTHNAME(m.start_date)
-    ORDER BY MONTH(m.start_date)
-  `;
-
-  const [rows] = await pool.query(query, queryParams);
-  const results = rows as any[];
-
-  const monthNames = [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
-  ];
-
-  const categories = [
-    "total",
-    "fitur",
-    "komunikasi",
-    "aktif",
-    "expired",
-    "dokumen",
-  ] as const;
-  const monthlyStats = {} as any;
-
-  categories.forEach((category) => {
-    monthlyStats[category] = monthNames.map((monthName, index) => {
-      const found = results.find((row) => row.month_num === index + 1);
-      return {
-        month: monthName,
-        value: found ? found[category] : 0,
-      };
-    });
-  });
-
-  return monthlyStats;
-}
+import {
+  Materi,
+  DokumenMateri,
+  PaginationFilters,
+  PaginatedResult,
+} from "../types/";
 
 function buildWhereClause(
   filters: PaginationFilters,
@@ -238,17 +138,13 @@ export async function findMateriIds(
   return (result as any[]).map((row) => row.id);
 }
 
-// SOLUSI OPTIMASI: Pindahkan sorting ke findMateriByIds untuk efisiensi maksimal
-export async function findMateriByIds(
-  ids: number[],
-  hideFields: Array<string> = []
-): Promise<any[]> {
+// Query 1: Ambil data materi utama berdasarkan IDs
+export async function findMateriDataByIds(ids: number[]): Promise<any[]> {
   if (ids.length === 0) return [];
 
   const placeholders = ids.map(() => "?").join(",");
 
-  // Query 1: Ambil data materi utama dengan ORDER BY di sini - O(n log n) tapi hanya untuk ids yang diperlukan
-  const materiQuery = `
+  const query = `
     SELECT 
       m.id,
       m.user_id,
@@ -275,8 +171,20 @@ export async function findMateriByIds(
     ORDER BY m.updated_at DESC, m.created_at DESC
   `;
 
-  // Query 2: Ambil semua dokumen dalam satu query - O(m)
-  const dokumenQuery = `
+  const [result] = await pool.query(query, ids);
+  return result as any[];
+}
+
+// Query 2: Ambil semua dokumen materi berdasarkan materi IDs
+export async function findDokumenMateriByMateriIds(
+  materiIds: number[],
+  hideFields: Array<string> = []
+): Promise<any[]> {
+  if (materiIds.length === 0) return [];
+
+  const placeholders = materiIds.map(() => "?").join(",");
+
+  const query = `
     SELECT 
       dm.materi_id,
       dm.id,
@@ -290,8 +198,19 @@ export async function findMateriByIds(
     ORDER BY dm.id
   `;
 
-  // Query 3: Ambil semua keywords dalam satu query - O(k)
-  const keywordQuery = `
+  const [result] = await pool.query(query, materiIds);
+  return result as any[];
+}
+
+// Query 3: Ambil semua keywords berdasarkan materi IDs
+export async function findKeywordsByMateriIds(
+  materiIds: number[]
+): Promise<any[]> {
+  if (materiIds.length === 0) return [];
+
+  const placeholders = materiIds.map(() => "?").join(",");
+
+  const query = `
     SELECT 
       dm.materi_id,
       dmk.dokumen_materi_id,
@@ -301,18 +220,25 @@ export async function findMateriByIds(
     WHERE dm.materi_id IN (${placeholders})
   `;
 
-  // Eksekusi paralel untuk semua query
-  const [materiRows, dokumenRows, keywordRows] = await Promise.all([
-    pool.query(materiQuery, ids),
-    pool.query(dokumenQuery, ids),
-    pool.query(keywordQuery, ids),
+  const [result] = await pool.query(query, materiIds);
+  return result as any[];
+}
+
+// Fungsi untuk menggabungkan semua data (kombinasi dari 3 query di atas)
+export async function findMateriByIds(
+  ids: number[],
+  hideFields: Array<string> = []
+): Promise<any[]> {
+  if (ids.length === 0) return [];
+
+  // Eksekusi 3 query secara paralel
+  const [materiData, dokumenData, keywordData] = await Promise.all([
+    findMateriDataByIds(ids),
+    findDokumenMateriByMateriIds(ids, hideFields),
+    findKeywordsByMateriIds(ids),
   ]);
 
-  const materiData = materiRows[0] as any[];
-  const dokumenData = dokumenRows[0] as any[];
-  const keywordData = keywordRows[0] as any[];
-
-  // Buat map untuk efisiensi lookup - O(m + k)
+  // Buat map untuk efisiensi lookup
   const dokumenMap = new Map<number, any[]>();
   const keywordMap = new Map<number, string[]>();
 
@@ -338,7 +264,7 @@ export async function findMateriByIds(
     keywordMap.get(kw.dokumen_materi_id)!.push(kw.keyword);
   });
 
-  // Assign keywords ke dokumen yang sesuai - O(m)
+  // Assign keywords ke dokumen yang sesuai
   dokumenMap.forEach((docs) => {
     docs.forEach((doc) => {
       doc.keywords = keywordMap.get(doc.id) || [];
