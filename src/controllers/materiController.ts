@@ -84,31 +84,3 @@ export const materiController = new Elysia({ prefix: "/api/materi" })
       return { success: false, message: "Gagal menghapus data" };
     }
   });
-
-// Add new endpoint for manual stats refresh
-export const statsController = new Elysia()
-  .use(authMiddleware)
-  .use(rolesMiddleware(["superadmin", "admin", "guest"]))
-  .get("/api/stats", async () => {
-    try {
-      const userMateri = await materiService.getAllMateri();
-      const now = new Date();
-
-      return {
-        total: userMateri.length,
-        fitur: userMateri.filter((m) => m.fitur && m.fitur.trim()).length,
-        komunikasi: userMateri.filter(
-          (m) => m.nama_materi && m.nama_materi.trim()
-        ).length,
-        aktif: userMateri.filter((m) => new Date(m.end_date) > now).length,
-        expired: userMateri.filter((m) => new Date(m.end_date) <= now).length,
-        dokumen: userMateri.filter(
-          (m) => m.dokumenMateri && m.dokumenMateri.length > 0
-        ).length,
-        lastUpdated: new Date().toISOString(),
-      };
-    } catch (error) {
-      console.error("Error fetching stats:", error);
-      return { error: "Failed to fetch stats" };
-    }
-  });
