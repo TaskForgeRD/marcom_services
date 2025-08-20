@@ -1,4 +1,4 @@
-// src/socket/socketServer.ts - Updated to handle filtered stats
+// src/socket/socketServer.ts - Updated to handle chart data
 import { Server, Socket } from "socket.io";
 import { Server as HttpServer } from "http";
 import jwt from "jsonwebtoken";
@@ -22,6 +22,31 @@ interface FilterParams {
   end_date?: string;
   search?: string;
   onlyVisualDocs?: boolean;
+}
+
+interface ChartDataPoint {
+  month: string;
+  monthName: string;
+  value: number;
+}
+
+interface StatsWithChart {
+  total: number;
+  fitur: number;
+  komunikasi: number;
+  aktif: number;
+  expired: number;
+  dokumen: number;
+  lastUpdated: string;
+  appliedFilters?: FilterParams;
+  chartData: {
+    total: ChartDataPoint[];
+    fitur: ChartDataPoint[];
+    komunikasi: ChartDataPoint[];
+    aktif: ChartDataPoint[];
+    expired: ChartDataPoint[];
+    dokumen: ChartDataPoint[];
+  };
 }
 
 export function setupSocketIO(httpServer: HttpServer) {
@@ -60,21 +85,24 @@ export function setupSocketIO(httpServer: HttpServer) {
     // Send initial stats when user connects (without filters)
     socket.on("request_stats", async () => {
       try {
-        const stats = await getStats(socket.role);
+        const stats = await getStatsWithChart(socket.role);
         socket.emit("stats_update", stats);
       } catch (error) {
         socket.emit("stats_error", { message: "Failed to fetch stats" });
       }
     });
 
-    // NEW: Handle filtered stats request
+    // Handle filtered stats request
     socket.on("request_filtered_stats", async (filterParams: FilterParams) => {
       try {
         console.log(
           `Requesting filtered stats for user ${socket.userName}:`,
           filterParams
         );
-        const stats = await getFilteredStats(socket.role, filterParams);
+        const stats = await getFilteredStatsWithChart(
+          socket.role,
+          filterParams
+        );
         socket.emit("stats_update", stats);
       } catch (error) {
         console.error("Error getting filtered stats:", error);
@@ -87,17 +115,20 @@ export function setupSocketIO(httpServer: HttpServer) {
     // Handle stats refresh request
     socket.on("refresh_stats", async () => {
       try {
-        const stats = await getStats(socket.role);
+        const stats = await getStatsWithChart(socket.role);
         socket.emit("stats_update", stats);
       } catch (error) {
         socket.emit("stats_error", { message: "Failed to refresh stats" });
       }
     });
 
-    // NEW: Handle filtered stats refresh
+    // Handle filtered stats refresh
     socket.on("refresh_filtered_stats", async (filterParams: FilterParams) => {
       try {
-        const stats = await getFilteredStats(socket.role, filterParams);
+        const stats = await getFilteredStatsWithChart(
+          socket.role,
+          filterParams
+        );
         socket.emit("stats_update", stats);
       } catch (error) {
         socket.emit("stats_error", {
@@ -114,7 +145,7 @@ export function setupSocketIO(httpServer: HttpServer) {
   return io;
 }
 
-// Helper function untuk cek status aktif (sama dengan di materiService)
+// Helper function untuk cek status aktif
 function isMateriAktif(itemEndDate: string | null): boolean {
   if (!itemEndDate) return false;
   const now = new Date();
@@ -125,7 +156,7 @@ function isMateriAktif(itemEndDate: string | null): boolean {
   return endDate > todayUTC;
 }
 
-// Helper function untuk apply filters (sama logic dengan materiService)
+// Helper function untuk apply filters
 function applyFilters(data: any[], filters: FilterParams) {
   return data.filter((item) => {
     // Brand filter
@@ -200,12 +231,108 @@ function applyFilters(data: any[], filters: FilterParams) {
   });
 }
 
-// Get statistics (original - without filters)
-async function getStats(userRole: UserPayload["role"]) {
+// Generate chart data for all 12 months
+function generateMonthlyChartData(): ChartDataPoint[] {
+  const months = [
+    { month: "01", monthName: "Jan" },
+    { month: "02", monthName: "Feb" },
+    { month: "03", monthName: "Mar" },
+    { month: "04", monthName: "Apr" },
+    { month: "05", monthName: "May" },
+    { month: "06", monthName: "Jun" },
+    { month: "07", monthName: "Jul" },
+    { month: "08", monthName: "Aug" },
+    { month: "09", monthName: "Sep" },
+    { month: "10", monthName: "Oct" },
+    { month: "11", monthName: "Nov" },
+    { month: "12", monthName: "Dec" },
+  ];
+
+  return months.map(({ month, monthName }) => ({
+    month,
+    monthName,
+    value: 0,
+  }));
+}
+
+// Calculate chart data from materi data
+function calculateChartData(materiData: any[]) {
+  const currentYear = new Date().getFullYear();
+
+  // Initialize chart data for all metrics
+  const chartData = {
+    total: generateMonthlyChartData(),
+    fitur: generateMonthlyChartData(),
+    komunikasi: generateMonthlyChartData(),
+    aktif: generateMonthlyChartData(),
+    expired: generateMonthlyChartData(),
+    dokumen: generateMonthlyChartData(),
+  };
+
+  // Process each materi
+  materiData.forEach((materi) => {
+    const startDate = new Date(materi.start_date);
+    const endDate = new Date(materi.end_date);
+
+    // Only process data from current year
+    if (
+      startDate.getFullYear() !== currentYear &&
+      endDate.getFullYear() !== currentYear
+    ) {
+      return;
+    }
+
+    // Determine which months this materi is active in
+    const startMonth = Math.max(
+      0,
+      startDate.getFullYear() === currentYear ? startDate.getMonth() : 0
+    );
+    const endMonth = Math.min(
+      11,
+      endDate.getFullYear() === currentYear ? endDate.getMonth() : 11
+    );
+
+    for (let month = startMonth; month <= endMonth; month++) {
+      // Total count
+      chartData.total[month].value += 1;
+
+      // Fitur count
+      if (materi.fitur && materi.fitur.trim()) {
+        chartData.fitur[month].value += 1;
+      }
+
+      // Komunikasi count
+      if (materi.nama_materi && materi.nama_materi.trim()) {
+        chartData.komunikasi[month].value += 1;
+      }
+
+      // Status counts (check if active/expired in that specific month)
+      const monthDate = new Date(currentYear, month, 15); // Mid month for comparison
+      const isAktifInMonth = monthDate <= endDate;
+
+      if (isAktifInMonth) {
+        chartData.aktif[month].value += 1;
+      } else {
+        chartData.expired[month].value += 1;
+      }
+
+      // Dokumen count
+      if (materi.dokumenMateri && Array.isArray(materi.dokumenMateri)) {
+        chartData.dokumen[month].value += materi.dokumenMateri.length;
+      }
+    }
+  });
+
+  return chartData;
+}
+
+// Get statistics with chart data (original - without filters)
+async function getStatsWithChart(
+  userRole: UserPayload["role"]
+): Promise<StatsWithChart> {
   try {
     const userMateri = await materiService.getAllMateri(userRole);
 
-    const now = new Date();
     const stats = {
       total: userMateri.length,
       fitur: userMateri.filter((m) => m.fitur && m.fitur.trim()).length,
@@ -221,22 +348,23 @@ async function getStats(userRole: UserPayload["role"]) {
         return total + (m.dokumenMateri ? m.dokumenMateri.length : 0);
       }, 0),
       lastUpdated: new Date().toISOString(),
+      chartData: calculateChartData(userMateri),
     };
 
     return stats;
   } catch (error) {
-    console.error("Error getting personal stats:", error);
+    console.error("Error getting stats with chart:", error);
     throw error;
   }
 }
 
-// NEW: Get filtered statistics
-async function getFilteredStats(
+// Get filtered statistics with chart data
+async function getFilteredStatsWithChart(
   userRole: UserPayload["role"],
   filters: FilterParams
-) {
+): Promise<StatsWithChart> {
   try {
-    console.log("Getting filtered stats with filters:", filters);
+    console.log("Getting filtered stats with chart data, filters:", filters);
 
     // Get all user data
     const allUserMateri = await materiService.getAllMateri(userRole);
@@ -265,14 +393,14 @@ async function getFilteredStats(
         return total + (m.dokumenMateri ? m.dokumenMateri.length : 0);
       }, 0),
       lastUpdated: new Date().toISOString(),
-      // Add filter info for debugging
       appliedFilters: filters,
+      chartData: calculateChartData(filteredMateri),
     };
 
-    console.log("Calculated filtered stats:", stats);
+    console.log("Calculated filtered stats with chart:", stats);
     return stats;
   } catch (error) {
-    console.error("Error getting filtered stats:", error);
+    console.error("Error getting filtered stats with chart:", error);
     throw error;
   }
 }
@@ -283,21 +411,21 @@ export async function broadcastStatsUpdate(
   userRole: UserPayload["role"]
 ) {
   try {
-    const stats = await getStats(userRole);
+    const stats = await getStatsWithChart(userRole);
     io.to(`user`).emit("stats_update", stats);
   } catch (error) {
     console.error("Error broadcasting stats update:", error);
   }
 }
 
-// NEW: Function to broadcast filtered stats update
+// Function to broadcast filtered stats update
 export async function broadcastFilteredStatsUpdate(
   io: Server,
   userRole: UserPayload["role"],
   filters: FilterParams
 ) {
   try {
-    const stats = await getFilteredStats(userRole, filters);
+    const stats = await getFilteredStatsWithChart(userRole, filters);
     io.to(`user`).emit("stats_update", stats);
   } catch (error) {
     console.error("Error broadcasting filtered stats update:", error);
