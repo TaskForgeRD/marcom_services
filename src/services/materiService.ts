@@ -328,17 +328,29 @@ export async function createMateri(formData: FormData, userId: number) {
   }
 }
 
+// NEW: Helper function to get user role from request context
+// This should be passed from the controller
+function getUserRoleFromContext(userId: number): Promise<Role | undefined> {
+  // This would typically query the database to get user role
+  // For now, we'll assume it's passed from the controller
+  return Promise.resolve(undefined);
+}
+
 export async function updateMateri(
   id: number,
   formData: FormData,
-  userId: number
+  userId: number,
+  userRole?: Role // NEW: Add userRole parameter
 ) {
   try {
-    // Check if materi belongs to user
+    // Check if materi exists
     const existingMateri = await materiModel.getMateriById(id);
     if (!existingMateri) {
       throw new Error("Materi tidak ditemukan atau Anda tidak memiliki akses");
     }
+
+    // NEW: Get existing dokumen data if user is admin
+    const existingDokumens = await materiModel.getDokumenMateriByMateriId(id);
 
     // Extract basic materi data
     const materiData = {
@@ -385,9 +397,6 @@ export async function updateMateri(
     // Update materi
     await materiModel.updateMateri(id, materi);
 
-    // Get existing documents to preserve thumbnails
-    const existingDokumens = await materiModel.getDokumenMateriByMateriId(id);
-
     // Delete existing documents and keywords
     await materiModel.deleteDokumenByMateriId(id);
 
@@ -397,9 +406,19 @@ export async function updateMateri(
     );
 
     for (let i = 0; i < dokumenCount; i++) {
-      const linkDokumen = formData.get(
+      let linkDokumen = formData.get(
         `dokumenMateri[${i}][linkDokumen]`
       ) as string;
+
+      // NEW: For admin users, preserve original link_dokumen from database
+      if (userRole === "admin" && existingDokumens[i]) {
+        linkDokumen = existingDokumens[i].link_dokumen;
+        console.log(
+          `Admin detected: Preserving original link for dokumen ${i}:`,
+          linkDokumen
+        );
+      }
+
       const tipeMateri = formData.get(
         `dokumenMateri[${i}][tipeMateri]`
       ) as string;

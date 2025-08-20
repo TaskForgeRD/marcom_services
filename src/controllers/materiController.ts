@@ -65,10 +65,13 @@ export const materiController = new Elysia({ prefix: "/api/materi" })
   .put("/:id", async ({ params: { id }, request, user, set }) => {
     try {
       const formData = await request.formData();
+
+      // NEW: Pass user role to updateMateri function
       const result = await materiService.updateMateri(
         parseInt(id),
         formData,
-        user.userId
+        user.userId,
+        user.role // Pass the user role here
       );
 
       // Broadcast stats update to user
