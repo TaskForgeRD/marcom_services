@@ -9,17 +9,6 @@ import { validateMateriData } from "../utils/validation";
 import { Materi } from "../types/";
 import { Role } from "../models/userModel";
 
-function getHiddenFieldByRole(role?: Role) {
-  switch (role) {
-    case "guest":
-      return ["link_dokumen"];
-    case "superadmin":
-    case "admin":
-    default:
-      return [];
-  }
-}
-
 // Helper function untuk cek status aktif
 function isMateriAktif(itemEndDate: string | null): boolean {
   if (!itemEndDate) return false;
@@ -29,6 +18,21 @@ function isMateriAktif(itemEndDate: string | null): boolean {
   );
   const endDate = new Date(itemEndDate);
   return endDate > todayUTC;
+}
+
+// Updated function untuk menentukan field yang disembunyikan berdasarkan role dan status
+function getHiddenFieldByRoleAndStatus(role?: Role, isActive?: boolean) {
+  switch (role) {
+    case "superadmin":
+      // Superadmin bisa melihat link dokumen baik aktif maupun expired
+      return [];
+    case "admin":
+    case "guest":
+      // Admin dan guest hanya bisa melihat link dokumen jika materi aktif
+      return isActive ? [] : ["link_dokumen"];
+    default:
+      return ["link_dokumen"];
+  }
 }
 
 // Helper function untuk filter materi
@@ -106,7 +110,28 @@ function applyFilters(data: any[], filters: any) {
   });
 }
 
-// New paginated service function
+// Updated function untuk apply permission berdasarkan role dan status per item
+function applyPermissionsByRoleAndStatus(data: any[], userRole?: Role) {
+  return data.map((item) => {
+    const isActive = item.end_date && isMateriAktif(item.end_date);
+    const hiddenFields = getHiddenFieldByRoleAndStatus(userRole, isActive);
+
+    // Jika link_dokumen harus disembunyikan, modify dokumenMateri
+    if (
+      hiddenFields.includes("link_dokumen") &&
+      Array.isArray(item.dokumenMateri)
+    ) {
+      item.dokumenMateri = item.dokumenMateri.map((dokumen: any) => ({
+        ...dokumen,
+        linkDokumen: "", // Hide the link
+      }));
+    }
+
+    return item;
+  });
+}
+
+// Updated paginated service function
 export async function getAllMateriWithPagination(
   userRole?: Role,
   page: number = 1,
@@ -114,9 +139,8 @@ export async function getAllMateriWithPagination(
   filters: any = {}
 ) {
   try {
-    // Get all data first
-    const hiddenFields = getHiddenFieldByRole(userRole);
-    const allData = await materiModel.getAllMateri(hiddenFields);
+    // Get all data first (without hiding any fields initially)
+    const allData = await materiModel.getAllMateri([]);
 
     // Apply filters
     const filteredData = applyFilters(allData, filters);
@@ -134,8 +158,14 @@ export async function getAllMateriWithPagination(
     const offset = (page - 1) * limit;
     const paginatedData = sortedData.slice(offset, offset + limit);
 
+    // Apply permissions based on role and status for each item
+    const dataWithPermissions = applyPermissionsByRoleAndStatus(
+      paginatedData,
+      userRole
+    );
+
     return {
-      data: paginatedData,
+      data: dataWithPermissions,
       pagination: {
         currentPage: page,
         totalPages,
@@ -146,7 +176,7 @@ export async function getAllMateriWithPagination(
         startIndex: offset + 1,
         endIndex: Math.min(offset + limit, total),
       },
-      filters: filters, // Return applied filters for reference
+      filters: filters,
     };
   } catch (error) {
     console.error("Error in getAllMateriWithPagination:", error);
@@ -154,15 +184,55 @@ export async function getAllMateriWithPagination(
   }
 }
 
-// Keep existing functions for backward compatibility
-export async function getAllMateri(userRole?: Role) {
-  const hiddenFields = getHiddenFieldByRole(userRole);
-  return await materiModel.getAllMateri(hiddenFields);
+// Updated function untuk single materi
+export async function getMateriById(id: number, userRole?: Role) {
+  try {
+    // Get materi without hiding fields initially
+    const materi = await materiModel.getMateriById(id, []);
+
+    if (!materi) {
+      return null;
+    }
+
+    // Apply permissions based on role and status
+    const isActive = materi.end_date && isMateriAktif(materi.end_date);
+    const hiddenFields = getHiddenFieldByRoleAndStatus(userRole, isActive);
+
+    // If link_dokumen should be hidden, modify dokumenMateri
+    if (
+      hiddenFields.includes("link_dokumen") &&
+      Array.isArray(materi.dokumenMateri)
+    ) {
+      materi.dokumenMateri = materi.dokumenMateri.map((dokumen: any) => ({
+        ...dokumen,
+        linkDokumen: "", // Hide the link
+      }));
+    }
+
+    return materi;
+  } catch (error) {
+    console.error("Error in getMateriById:", error);
+    throw error;
+  }
 }
 
-export async function getMateriById(id: number, userRole?: Role) {
-  const hiddenFields = getHiddenFieldByRole(userRole);
-  return await materiModel.getMateriById(id, hiddenFields);
+// Keep existing functions for backward compatibility
+export async function getAllMateri(userRole?: Role) {
+  try {
+    // Get all data without hiding fields initially
+    const allData = await materiModel.getAllMateri([]);
+
+    // Apply permissions based on role and status for each item
+    const dataWithPermissions = applyPermissionsByRoleAndStatus(
+      allData,
+      userRole
+    );
+
+    return dataWithPermissions;
+  } catch (error) {
+    console.error("Error in getAllMateri:", error);
+    throw error;
+  }
 }
 
 export async function createMateri(formData: FormData, userId: number) {
