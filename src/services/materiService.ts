@@ -20,7 +20,141 @@ function getHiddenFieldByRole(role?: Role) {
   }
 }
 
-// Jangan berdasarkan User ID, karena materi bisa diakses oleh banyak user
+// Helper function untuk cek status aktif
+function isMateriAktif(itemEndDate: string | null): boolean {
+  if (!itemEndDate) return false;
+  const now = new Date();
+  const todayUTC = new Date(
+    Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())
+  );
+  const endDate = new Date(itemEndDate);
+  return endDate > todayUTC;
+}
+
+// Helper function untuk filter materi
+function applyFilters(data: any[], filters: any) {
+  return data.filter((item) => {
+    // Brand filter
+    if (filters.brand && item.brand !== filters.brand) {
+      return false;
+    }
+
+    // Cluster filter
+    if (filters.cluster && item.cluster !== filters.cluster) {
+      return false;
+    }
+
+    // Fitur filter
+    if (filters.fitur && item.fitur !== filters.fitur) {
+      return false;
+    }
+
+    // Jenis filter
+    if (filters.jenis && item.jenis !== filters.jenis) {
+      return false;
+    }
+
+    // Status filter
+    if (filters.status) {
+      const isAktif = item.end_date && isMateriAktif(item.end_date);
+      if (filters.status === "Aktif" && !isAktif) return false;
+      if (filters.status === "Expired" && isAktif) return false;
+    }
+
+    // Date range filter
+    if (filters.start_date && filters.end_date) {
+      const filterStartDate = new Date(filters.start_date);
+      const filterEndDate = new Date(filters.end_date);
+      const itemStartDate = item.start_date ? new Date(item.start_date) : null;
+      const itemEndDate = item.end_date ? new Date(item.end_date) : null;
+
+      if (itemStartDate && itemEndDate) {
+        // Check for overlap
+        const hasOverlap =
+          itemStartDate <= filterEndDate && itemEndDate >= filterStartDate;
+        if (!hasOverlap) return false;
+      }
+    }
+
+    // Search filter
+    if (filters.search) {
+      const searchLower = filters.search.toLowerCase();
+      const namaMatch = item.nama_materi.toLowerCase().includes(searchLower);
+
+      const keywordMatch = Array.isArray(item.dokumenMateri)
+        ? item.dokumenMateri.some((dokumen: any) =>
+            (dokumen.keywords || []).some((keyword: string) =>
+              keyword.toLowerCase().includes(searchLower)
+            )
+          )
+        : false;
+
+      if (!namaMatch && !keywordMatch) return false;
+    }
+
+    // Visual docs filter
+    if (filters.onlyVisualDocs) {
+      const hasKeyVisualDoc =
+        Array.isArray(item.dokumenMateri) &&
+        item.dokumenMateri.some(
+          (dokumen: any) => dokumen.tipeMateri === "Key Visual"
+        );
+      if (!hasKeyVisualDoc) return false;
+    }
+
+    return true;
+  });
+}
+
+// New paginated service function
+export async function getAllMateriWithPagination(
+  userRole?: Role,
+  page: number = 1,
+  limit: number = 10,
+  filters: any = {}
+) {
+  try {
+    // Get all data first
+    const hiddenFields = getHiddenFieldByRole(userRole);
+    const allData = await materiModel.getAllMateri(hiddenFields);
+
+    // Apply filters
+    const filteredData = applyFilters(allData, filters);
+
+    // Sort by updated_at or created_at (newest first)
+    const sortedData = filteredData.sort((a, b) => {
+      const dateA = new Date(a.updated_at || a.created_at);
+      const dateB = new Date(b.updated_at || b.created_at);
+      return dateB.getTime() - dateA.getTime();
+    });
+
+    // Calculate pagination
+    const total = sortedData.length;
+    const totalPages = Math.ceil(total / limit);
+    const offset = (page - 1) * limit;
+    const paginatedData = sortedData.slice(offset, offset + limit);
+
+    return {
+      data: paginatedData,
+      pagination: {
+        currentPage: page,
+        totalPages,
+        totalItems: total,
+        itemsPerPage: limit,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1,
+        startIndex: offset + 1,
+        endIndex: Math.min(offset + limit, total),
+      },
+      filters: filters, // Return applied filters for reference
+    };
+  } catch (error) {
+    console.error("Error in getAllMateriWithPagination:", error);
+    throw error;
+  }
+}
+
+// Keep existing functions for backward compatibility
 export async function getAllMateri(userRole?: Role) {
   const hiddenFields = getHiddenFieldByRole(userRole);
   return await materiModel.getAllMateri(hiddenFields);
@@ -30,7 +164,6 @@ export async function getMateriById(id: number, userRole?: Role) {
   const hiddenFields = getHiddenFieldByRole(userRole);
   return await materiModel.getMateriById(id, hiddenFields);
 }
-// Jangan berdasarkan User ID, karena materi bisa diakses oleh banyak user
 
 export async function createMateri(formData: FormData, userId: number) {
   try {
