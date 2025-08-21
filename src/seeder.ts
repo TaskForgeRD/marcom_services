@@ -32,9 +32,9 @@ function getRandomDate(start: Date, end: Date): string {
 
 async function seed() {
   const connection = await mysql.createConnection({
-    host: "localhost",
-    user: "root",
-    password: "",
+    host: "127.0.0.1",
+    user: "marcom_user",
+    password: "marcom_password",
     database: "marcom",
   });
 
