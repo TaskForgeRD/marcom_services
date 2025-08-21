@@ -211,7 +211,7 @@ async function seed() {
         materiId,
         sharedLink,
         tipeMateri,
-        "4d2114b7-8f46-476a-9ddc-e8b85e967937.png",
+        "f2dd0b45-3da9-45e1-9827-335a76b16b55.png",
         materiId,
       ]
     );
