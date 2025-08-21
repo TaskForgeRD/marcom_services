@@ -5,7 +5,7 @@
     "dev": "bun run --watch src/index.ts",
     "start": "bun src/index.ts",
     "setup": "bash setup.sh",
-    "seed": "ts-node src/seeder.ts"
+    "seed": "bun src/seeder.ts"
   },
   "dependencies": {
     "elysia": "^1.2.25",
