@@ -35,6 +35,26 @@ function getHiddenFieldByRoleAndStatus(role?: Role, isActive?: boolean) {
   }
 }
 
+// NEW: Function untuk filter data berdasarkan role
+function applyRoleBasedFilter(data: any[], userRole?: Role) {
+  switch (userRole) {
+    case "superadmin":
+    case "admin":
+      // Superadmin dan admin bisa melihat semua data (aktif dan expired)
+      return data;
+    case "guest":
+      // Guest hanya bisa melihat data yang aktif (expired tidak muncul sama sekali)
+      return data.filter((item) => {
+        return item.end_date && isMateriAktif(item.end_date);
+      });
+    default:
+      // Default behavior: hanya tampilkan data aktif
+      return data.filter((item) => {
+        return item.end_date && isMateriAktif(item.end_date);
+      });
+  }
+}
+
 // Helper function untuk filter materi
 function applyFilters(data: any[], filters: any) {
   return data.filter((item) => {
@@ -58,7 +78,8 @@ function applyFilters(data: any[], filters: any) {
       return false;
     }
 
-    // Status filter
+    // Status filter - hanya untuk superadmin dan admin
+    // Guest sudah difilter di applyRoleBasedFilter, jadi skip status filter untuk guest
     if (filters.status) {
       const isAktif = item.end_date && isMateriAktif(item.end_date);
       if (filters.status === "Aktif" && !isAktif) return false;
@@ -142,8 +163,11 @@ export async function getAllMateriWithPagination(
     // Get all data first (without hiding any fields initially)
     const allData = await materiModel.getAllMateri([]);
 
-    // Apply filters
-    const filteredData = applyFilters(allData, filters);
+    // NEW: Apply role-based filtering first (before other filters)
+    const roleFilteredData = applyRoleBasedFilter(allData, userRole);
+
+    // Apply other filters
+    const filteredData = applyFilters(roleFilteredData, filters);
 
     // Sort by updated_at or created_at (newest first)
     const sortedData = filteredData.sort((a, b) => {
@@ -194,6 +218,15 @@ export async function getMateriById(id: number, userRole?: Role) {
       return null;
     }
 
+    // NEW: Apply role-based filtering for single item
+    if (userRole === "guest") {
+      const isActive = materi.end_date && isMateriAktif(materi.end_date);
+      if (!isActive) {
+        // Guest tidak bisa akses materi yang expired
+        return null;
+      }
+    }
+
     // Apply permissions based on role and status
     const isActive = materi.end_date && isMateriAktif(materi.end_date);
     const hiddenFields = getHiddenFieldByRoleAndStatus(userRole, isActive);
@@ -216,15 +249,18 @@ export async function getMateriById(id: number, userRole?: Role) {
   }
 }
 
-// Keep existing functions for backward compatibility
+// Updated function for backward compatibility
 export async function getAllMateri(userRole?: Role) {
   try {
     // Get all data without hiding fields initially
     const allData = await materiModel.getAllMateri([]);
 
+    // NEW: Apply role-based filtering first
+    const roleFilteredData = applyRoleBasedFilter(allData, userRole);
+
     // Apply permissions based on role and status for each item
     const dataWithPermissions = applyPermissionsByRoleAndStatus(
-      allData,
+      roleFilteredData,
       userRole
     );
 
@@ -347,6 +383,17 @@ export async function updateMateri(
     const existingMateri = await materiModel.getMateriById(id);
     if (!existingMateri) {
       throw new Error("Materi tidak ditemukan atau Anda tidak memiliki akses");
+    }
+
+    // NEW: Additional role-based access check
+    if (userRole === "guest") {
+      const isActive =
+        existingMateri.end_date && isMateriAktif(existingMateri.end_date);
+      if (!isActive) {
+        throw new Error(
+          "Anda tidak memiliki akses untuk mengupdate materi yang expired"
+        );
+      }
     }
 
     // NEW: Get existing dokumen data if user is admin

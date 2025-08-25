@@ -1,4 +1,4 @@
-// src/socket/socketServer.ts - Updated to handle chart data
+// src/socket/socketServer.ts - Updated to remove filtered stats functionality
 import { Server, Socket } from "socket.io";
 import { Server as HttpServer } from "http";
 import jwt from "jsonwebtoken";
@@ -10,18 +10,6 @@ interface AuthenticatedSocket extends Socket {
   userId?: number;
   userName?: string;
   role?: Role;
-}
-
-interface FilterParams {
-  brand?: string;
-  cluster?: string;
-  fitur?: string;
-  jenis?: string;
-  status?: string;
-  start_date?: string;
-  end_date?: string;
-  search?: string;
-  onlyVisualDocs?: boolean;
 }
 
 interface ChartDataPoint {
@@ -38,7 +26,6 @@ interface StatsWithChart {
   expired: number;
   dokumen: number;
   lastUpdated: string;
-  appliedFilters?: FilterParams;
   chartData: {
     total: ChartDataPoint[];
     fitur: ChartDataPoint[];
@@ -82,60 +69,33 @@ export function setupSocketIO(httpServer: HttpServer) {
     // Join user to their personal room
     socket.join(`user_${socket.userId}`);
 
-    // Send initial stats when user connects (without filters)
+    // Send unfiltered stats when user connects
     socket.on("request_stats", async () => {
       try {
-        const stats = await getStatsWithChart(socket.role);
+        console.log(`Requesting unfiltered stats for user ${socket.userName}`);
+        const stats = await getUnfilteredStatsWithChart(socket.role);
         socket.emit("stats_update", stats);
       } catch (error) {
+        console.error("Error getting unfiltered stats:", error);
         socket.emit("stats_error", { message: "Failed to fetch stats" });
-      }
-    });
-
-    // Handle filtered stats request
-    socket.on("request_filtered_stats", async (filterParams: FilterParams) => {
-      try {
-        console.log(
-          `Requesting filtered stats for user ${socket.userName}:`,
-          filterParams
-        );
-        const stats = await getFilteredStatsWithChart(
-          socket.role,
-          filterParams
-        );
-        socket.emit("stats_update", stats);
-      } catch (error) {
-        console.error("Error getting filtered stats:", error);
-        socket.emit("stats_error", {
-          message: "Failed to fetch filtered stats",
-        });
       }
     });
 
     // Handle stats refresh request
     socket.on("refresh_stats", async () => {
       try {
-        const stats = await getStatsWithChart(socket.role);
+        console.log(`Refreshing unfiltered stats for user ${socket.userName}`);
+        const stats = await getUnfilteredStatsWithChart(socket.role);
         socket.emit("stats_update", stats);
       } catch (error) {
+        console.error("Error refreshing stats:", error);
         socket.emit("stats_error", { message: "Failed to refresh stats" });
       }
     });
 
-    // Handle filtered stats refresh
-    socket.on("refresh_filtered_stats", async (filterParams: FilterParams) => {
-      try {
-        const stats = await getFilteredStatsWithChart(
-          socket.role,
-          filterParams
-        );
-        socket.emit("stats_update", stats);
-      } catch (error) {
-        socket.emit("stats_error", {
-          message: "Failed to refresh filtered stats",
-        });
-      }
-    });
+    // REMOVED: All filtered stats event handlers
+    // - request_filtered_stats
+    // - refresh_filtered_stats
 
     socket.on("disconnect", () => {
       console.log(`User ${socket.userName} (${socket.userId}) disconnected`);
@@ -154,81 +114,6 @@ function isMateriAktif(itemEndDate: string | null): boolean {
   );
   const endDate = new Date(itemEndDate);
   return endDate > todayUTC;
-}
-
-// Helper function untuk apply filters
-function applyFilters(data: any[], filters: FilterParams) {
-  return data.filter((item) => {
-    // Brand filter
-    if (filters.brand && item.brand !== filters.brand) {
-      return false;
-    }
-
-    // Cluster filter
-    if (filters.cluster && item.cluster !== filters.cluster) {
-      return false;
-    }
-
-    // Fitur filter
-    if (filters.fitur && item.fitur !== filters.fitur) {
-      return false;
-    }
-
-    // Jenis filter
-    if (filters.jenis && item.jenis !== filters.jenis) {
-      return false;
-    }
-
-    // Status filter
-    if (filters.status) {
-      const isAktif = item.end_date && isMateriAktif(item.end_date);
-      if (filters.status === "Aktif" && !isAktif) return false;
-      if (filters.status === "Expired" && isAktif) return false;
-    }
-
-    // Date range filter
-    if (filters.start_date && filters.end_date) {
-      const filterStartDate = new Date(filters.start_date);
-      const filterEndDate = new Date(filters.end_date);
-      const itemStartDate = item.start_date ? new Date(item.start_date) : null;
-      const itemEndDate = item.end_date ? new Date(item.end_date) : null;
-
-      if (itemStartDate && itemEndDate) {
-        // Check for overlap
-        const hasOverlap =
-          itemStartDate <= filterEndDate && itemEndDate >= filterStartDate;
-        if (!hasOverlap) return false;
-      }
-    }
-
-    // Search filter
-    if (filters.search) {
-      const searchLower = filters.search.toLowerCase();
-      const namaMatch = item.nama_materi.toLowerCase().includes(searchLower);
-
-      const keywordMatch = Array.isArray(item.dokumenMateri)
-        ? item.dokumenMateri.some((dokumen: any) =>
-            (dokumen.keywords || []).some((keyword: string) =>
-              keyword.toLowerCase().includes(searchLower)
-            )
-          )
-        : false;
-
-      if (!namaMatch && !keywordMatch) return false;
-    }
-
-    // Visual docs filter
-    if (filters.onlyVisualDocs) {
-      const hasKeyVisualDoc =
-        Array.isArray(item.dokumenMateri) &&
-        item.dokumenMateri.some(
-          (dokumen: any) => dokumen.tipeMateri === "Key Visual"
-        );
-      if (!hasKeyVisualDoc) return false;
-    }
-
-    return true;
-  });
 }
 
 // Generate chart data for all 12 months
@@ -326,108 +211,66 @@ function calculateChartData(materiData: any[]) {
   return chartData;
 }
 
-// Get statistics with chart data (original - without filters)
-async function getStatsWithChart(
+// Get unfiltered statistics with chart data
+async function getUnfilteredStatsWithChart(
   userRole: UserPayload["role"]
 ): Promise<StatsWithChart> {
   try {
-    const userMateri = await materiService.getAllMateri(userRole);
+    console.log("Getting unfiltered stats with chart data for role:", userRole);
 
-    const stats = {
-      total: userMateri.length,
-      fitur: userMateri.filter((m) => m.fitur && m.fitur.trim()).length,
-      komunikasi: userMateri.filter(
-        (m) => m.nama_materi && m.nama_materi.trim()
-      ).length,
-      aktif: userMateri.filter((m) => m.end_date && isMateriAktif(m.end_date))
-        .length,
-      expired: userMateri.filter(
-        (m) => m.end_date && !isMateriAktif(m.end_date)
-      ).length,
-      dokumen: userMateri.reduce((total, m) => {
-        return total + (m.dokumenMateri ? m.dokumenMateri.length : 0);
-      }, 0),
-      lastUpdated: new Date().toISOString(),
-      chartData: calculateChartData(userMateri),
-    };
-
-    return stats;
-  } catch (error) {
-    console.error("Error getting stats with chart:", error);
-    throw error;
-  }
-}
-
-// Get filtered statistics with chart data
-async function getFilteredStatsWithChart(
-  userRole: UserPayload["role"],
-  filters: FilterParams
-): Promise<StatsWithChart> {
-  try {
-    console.log("Getting filtered stats with chart data, filters:", filters);
-
-    // Get all user data
+    // Get ALL user data without any filters
     const allUserMateri = await materiService.getAllMateri(userRole);
 
-    // Apply filters
-    const filteredMateri = applyFilters(allUserMateri, filters);
+    console.log(`Retrieved ${allUserMateri.length} total materi items`);
 
-    console.log(
-      `Filtered ${allUserMateri.length} items to ${filteredMateri.length} items`
-    );
-
-    // Calculate stats from filtered data
+    // Calculate stats from ALL data (no filtering)
     const stats = {
-      total: filteredMateri.length,
-      fitur: filteredMateri.filter((m) => m.fitur && m.fitur.trim()).length,
-      komunikasi: filteredMateri.filter(
+      total: allUserMateri.length,
+      fitur: allUserMateri.filter((m) => m.fitur && m.fitur.trim()).length,
+      komunikasi: allUserMateri.filter(
         (m) => m.nama_materi && m.nama_materi.trim()
       ).length,
-      aktif: filteredMateri.filter(
+      aktif: allUserMateri.filter(
         (m) => m.end_date && isMateriAktif(m.end_date)
       ).length,
-      expired: filteredMateri.filter(
+      expired: allUserMateri.filter(
         (m) => m.end_date && !isMateriAktif(m.end_date)
       ).length,
-      dokumen: filteredMateri.reduce((total, m) => {
+      dokumen: allUserMateri.reduce((total, m) => {
         return total + (m.dokumenMateri ? m.dokumenMateri.length : 0);
       }, 0),
       lastUpdated: new Date().toISOString(),
-      appliedFilters: filters,
-      chartData: calculateChartData(filteredMateri),
+      chartData: calculateChartData(allUserMateri), // Chart based on ALL data
     };
 
-    console.log("Calculated filtered stats with chart:", stats);
+    console.log("Calculated unfiltered stats:", {
+      total: stats.total,
+      fitur: stats.fitur,
+      komunikasi: stats.komunikasi,
+      aktif: stats.aktif,
+      expired: stats.expired,
+      dokumen: stats.dokumen,
+    });
+
     return stats;
   } catch (error) {
-    console.error("Error getting filtered stats with chart:", error);
+    console.error("Error getting unfiltered stats with chart:", error);
     throw error;
   }
 }
 
-// Function to broadcast stats update to a specific user
+// Function to broadcast unfiltered stats update to all users
 export async function broadcastStatsUpdate(
   io: Server,
   userRole: UserPayload["role"]
 ) {
   try {
-    const stats = await getStatsWithChart(userRole);
-    io.to(`user`).emit("stats_update", stats);
+    console.log("Broadcasting unfiltered stats update");
+    const stats = await getUnfilteredStatsWithChart(userRole);
+    io.emit("stats_update", stats); // Broadcast to all connected users
   } catch (error) {
     console.error("Error broadcasting stats update:", error);
   }
 }
 
-// Function to broadcast filtered stats update
-export async function broadcastFilteredStatsUpdate(
-  io: Server,
-  userRole: UserPayload["role"],
-  filters: FilterParams
-) {
-  try {
-    const stats = await getFilteredStatsWithChart(userRole, filters);
-    io.to(`user`).emit("stats_update", stats);
-  } catch (error) {
-    console.error("Error broadcasting filtered stats update:", error);
-  }
-}
+// REMOVED: broadcastFilteredStatsUpdate function - no longer needed
