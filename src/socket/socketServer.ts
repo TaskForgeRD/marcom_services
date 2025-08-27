@@ -6,6 +6,12 @@ import * as materiService from "../services/materiService";
 import { UserPayload } from "../middlewares/authMiddleware";
 import { Role } from "../models/userModel";
 
+interface FilterOptions {
+  startDate?: string;
+  endDate?: string;
+  brand?: string;
+}
+
 interface AuthenticatedSocket extends Socket {
   userId?: number;
   userName?: string;
@@ -70,10 +76,21 @@ export function setupSocketIO(httpServer: HttpServer) {
     socket.join(`user_${socket.userId}`);
 
     // Send initial unfiltered stats when user connects
-    socket.on("request_stats", async () => {
+    socket.on("request_stats", async (filter?: FilterOptions) => {
       try {
         console.log(`Requesting unfiltered stats for user ${socket.userName}`);
-        const stats = await getStatsWithChart(socket.role);
+        let startDate, endDate, brand;
+        if (filter) {
+          if (filter.startDate) startDate = filter.startDate;
+          if (filter.endDate) endDate = filter.endDate;
+          if (filter.brand) brand = filter.brand;
+        }
+        const stats = await getStatsWithChart(
+          socket.role,
+          filter?.startDate,
+          filter?.endDate,
+          filter?.brand,
+        );
         socket.emit("stats_update", stats);
       } catch (error) {
         console.error("Error getting unfiltered stats:", error);
@@ -82,10 +99,22 @@ export function setupSocketIO(httpServer: HttpServer) {
     });
 
     // Handle stats refresh request (always unfiltered)
-    socket.on("refresh_stats", async () => {
+    socket.on("refresh_stats", async (filter?: FilterOptions) => {
       try {
+        let startDate, endDate, brand;
+        if (filter) {
+          if (filter.startDate) startDate = filter.startDate;
+          if (filter.endDate) endDate = filter.endDate;
+          if (filter.brand) brand = filter.brand;
+        }
+
         console.log(`Refreshing unfiltered stats for user ${socket.userName}`);
-        const stats = await getStatsWithChart(socket.role);
+        const stats = await getStatsWithChart(
+          socket.role,
+          filter?.startDate,
+          filter?.endDate,
+          filter?.brand,
+        );
         socket.emit("stats_update", stats);
       } catch (error) {
         console.error("Error refreshing stats:", error);
@@ -106,7 +135,7 @@ function isMateriAktif(itemEndDate: string | null): boolean {
   if (!itemEndDate) return false;
   const now = new Date();
   const todayUTC = new Date(
-    Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())
+    Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()),
   );
   const endDate = new Date(itemEndDate);
   return endDate > todayUTC;
@@ -166,11 +195,11 @@ function calculateChartData(materiData: any[]) {
     // Determine which months this materi is active in
     const startMonth = Math.max(
       0,
-      startDate.getFullYear() === currentYear ? startDate.getMonth() : 0
+      startDate.getFullYear() === currentYear ? startDate.getMonth() : 0,
     );
     const endMonth = Math.min(
       11,
-      endDate.getFullYear() === currentYear ? endDate.getMonth() : 11
+      endDate.getFullYear() === currentYear ? endDate.getMonth() : 11,
     );
 
     for (let month = startMonth; month <= endMonth; month++) {
@@ -209,25 +238,33 @@ function calculateChartData(materiData: any[]) {
 
 // Get statistics with chart data (always unfiltered)
 async function getStatsWithChart(
-  userRole: UserPayload["role"]
+  userRole: UserPayload["role"],
+  startDate?: string,
+  endDate?: string,
+  brand?: string,
 ): Promise<StatsWithChart> {
   try {
     console.log("Getting unfiltered stats with chart data for role:", userRole);
 
     // Always get ALL data without any filters
-    const allUserMateri = await materiService.getAllMateri(userRole);
+    const allUserMateri = await materiService.getAllMateri(
+      userRole,
+      startDate,
+      endDate,
+      brand,
+    );
 
     const stats = {
       total: allUserMateri.length,
       fitur: allUserMateri.filter((m) => m.fitur && m.fitur.trim()).length,
       komunikasi: allUserMateri.filter(
-        (m) => m.nama_materi && m.nama_materi.trim()
+        (m) => m.nama_materi && m.nama_materi.trim(),
       ).length,
       aktif: allUserMateri.filter(
-        (m) => m.end_date && isMateriAktif(m.end_date)
+        (m) => m.end_date && isMateriAktif(m.end_date),
       ).length,
       expired: allUserMateri.filter(
-        (m) => m.end_date && !isMateriAktif(m.end_date)
+        (m) => m.end_date && !isMateriAktif(m.end_date),
       ).length,
       dokumen: allUserMateri.reduce((total, m) => {
         return total + (m.dokumenMateri ? m.dokumenMateri.length : 0);
@@ -247,12 +284,12 @@ async function getStatsWithChart(
 // Function to broadcast stats update to a specific user (always unfiltered)
 export async function broadcastStatsUpdate(
   io: Server,
-  userRole: UserPayload["role"]
+  userRole: UserPayload["role"],
 ) {
   try {
     console.log("Broadcasting unfiltered stats update for role:", userRole);
-    const stats = await getStatsWithChart(userRole);
-    io.to(`user`).emit("stats_update", stats);
+    // const stats = await getStatsWithChart(userRole);
+    io.to(`user`).emit("has_update");
   } catch (error) {
     console.error("Error broadcasting stats update:", error);
   }
