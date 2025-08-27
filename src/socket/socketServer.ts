@@ -7,8 +7,8 @@ import { UserPayload } from "../middlewares/authMiddleware";
 import { Role } from "../models/userModel";
 
 interface FilterOptions {
-  startDate?: string;
-  endDate?: string;
+  start_date?: string;
+  end_date?: string;
   brand?: string;
 }
 
@@ -81,14 +81,14 @@ export function setupSocketIO(httpServer: HttpServer) {
         console.log(`Requesting unfiltered stats for user ${socket.userName}`);
         let startDate, endDate, brand;
         if (filter) {
-          if (filter.startDate) startDate = filter.startDate;
-          if (filter.endDate) endDate = filter.endDate;
+          if (filter.start_date) startDate = filter.start_date;
+          if (filter.end_date) endDate = filter.end_date;
           if (filter.brand) brand = filter.brand;
         }
         const stats = await getStatsWithChart(
           socket.role,
-          filter?.startDate,
-          filter?.endDate,
+          filter?.start_date,
+          filter?.end_date,
           filter?.brand,
         );
         socket.emit("stats_update", stats);
@@ -103,16 +103,16 @@ export function setupSocketIO(httpServer: HttpServer) {
       try {
         let startDate, endDate, brand;
         if (filter) {
-          if (filter.startDate) startDate = filter.startDate;
-          if (filter.endDate) endDate = filter.endDate;
+          if (filter.start_date) startDate = filter.start_date;
+          if (filter.end_date) endDate = filter.end_date;
           if (filter.brand) brand = filter.brand;
         }
 
         console.log(`Refreshing unfiltered stats for user ${socket.userName}`);
         const stats = await getStatsWithChart(
           socket.role,
-          filter?.startDate,
-          filter?.endDate,
+          filter?.start_date,
+          filter?.end_date,
           filter?.brand,
         );
         socket.emit("stats_update", stats);
