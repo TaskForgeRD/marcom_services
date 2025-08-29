@@ -4,6 +4,7 @@ bun.lockb
 
 # Env
 .env
+.env.dev
 
 # OS
 .DS_Store
