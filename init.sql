@@ -97,7 +97,5 @@ INSERT INTO jenis (name) VALUES
   ('Tematik'),
   ('Tactical');
 
--- Tambah kolom role jika belum ada
 ALTER TABLE users
-ADD COLUMN IF NOT EXISTS role ENUM('user', 'admin', 'superadmin', 'guest') NOT NULL DEFAULT 'guest';
-
+ADD COLUMN role ENUM('user', 'admin', 'superadmin', 'guest') NOT NULL DEFAULT 'guest';
