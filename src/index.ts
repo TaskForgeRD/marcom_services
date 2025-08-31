@@ -21,7 +21,9 @@ const SOCKET_IO_PORT = process.env.SOCKET_IO || 5001;
 const PORT = process.env.PORT || 5000;
 
 // Ensure uploads directory exists
-const uploadsDir = path.join(process.cwd(), "uploads");
+const uploadsDir =
+  process.env.UPLOAD_DIR || path.join(process.cwd(), "uploads");
+
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
