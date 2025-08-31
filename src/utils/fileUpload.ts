@@ -1,8 +1,8 @@
-import fs from 'fs';
-import path from 'path';
-import crypto from 'crypto';
+import fs from "fs";
+import path from "path";
+import crypto from "crypto";
 
-const uploadDir = path.join(process.cwd(), 'uploads');
+const uploadDir = process.env.UPLOAD_DIR || path.join(process.cwd(), "uploads");
 
 // Ensure upload directory exists
 if (!fs.existsSync(uploadDir)) {
@@ -15,12 +15,12 @@ if (!fs.existsSync(uploadDir)) {
  * @returns The filename of the saved file
  */
 export async function saveFile(file: any): Promise<string> {
-  if (!file || !file.name) return '';
-  
-  const fileExtension = file.name.split('.').pop();
+  if (!file || !file.name) return "";
+
+  const fileExtension = file.name.split(".").pop();
   const fileName = `${crypto.randomUUID()}.${fileExtension}`;
   const filePath = path.join(uploadDir, fileName);
-  
+
   await fs.promises.writeFile(filePath, await file.arrayBuffer());
   return fileName;
 }
