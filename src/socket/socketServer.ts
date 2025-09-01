@@ -89,7 +89,7 @@ export function setupSocketIO(httpServer: HttpServer) {
           socket.role,
           filter?.start_date,
           filter?.end_date,
-          filter?.brand,
+          filter?.brand
         );
         socket.emit("stats_update", stats);
       } catch (error) {
@@ -113,7 +113,7 @@ export function setupSocketIO(httpServer: HttpServer) {
           socket.role,
           filter?.start_date,
           filter?.end_date,
-          filter?.brand,
+          filter?.brand
         );
         socket.emit("stats_update", stats);
       } catch (error) {
@@ -135,7 +135,7 @@ function isMateriAktif(itemEndDate: string | null): boolean {
   if (!itemEndDate) return false;
   const now = new Date();
   const todayUTC = new Date(
-    Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()),
+    Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())
   );
   const endDate = new Date(itemEndDate);
   return endDate > todayUTC;
@@ -195,11 +195,11 @@ function calculateChartData(materiData: any[]) {
     // Determine which months this materi is active in
     const startMonth = Math.max(
       0,
-      startDate.getFullYear() === currentYear ? startDate.getMonth() : 0,
+      startDate.getFullYear() === currentYear ? startDate.getMonth() : 0
     );
     const endMonth = Math.min(
       11,
-      endDate.getFullYear() === currentYear ? endDate.getMonth() : 11,
+      endDate.getFullYear() === currentYear ? endDate.getMonth() : 11
     );
 
     for (let month = startMonth; month <= endMonth; month++) {
@@ -241,7 +241,7 @@ async function getStatsWithChart(
   userRole: UserPayload["role"],
   startDate?: string,
   endDate?: string,
-  brand?: string,
+  brand?: string
 ): Promise<StatsWithChart> {
   try {
     console.log("Getting unfiltered stats with chart data for role:", userRole);
@@ -251,20 +251,20 @@ async function getStatsWithChart(
       userRole,
       startDate,
       endDate,
-      brand,
+      brand
     );
 
     const stats = {
       total: allUserMateri.length,
       fitur: allUserMateri.filter((m) => m.fitur && m.fitur.trim()).length,
       komunikasi: allUserMateri.filter(
-        (m) => m.nama_materi && m.nama_materi.trim(),
+        (m) => m.nama_materi && m.nama_materi.trim()
       ).length,
       aktif: allUserMateri.filter(
-        (m) => m.end_date && isMateriAktif(m.end_date),
+        (m) => m.end_date && isMateriAktif(m.end_date)
       ).length,
       expired: allUserMateri.filter(
-        (m) => m.end_date && !isMateriAktif(m.end_date),
+        (m) => m.end_date && !isMateriAktif(m.end_date)
       ).length,
       dokumen: allUserMateri.reduce((total, m) => {
         return total + (m.dokumenMateri ? m.dokumenMateri.length : 0);
@@ -272,8 +272,6 @@ async function getStatsWithChart(
       lastUpdated: new Date().toISOString(),
       chartData: calculateChartData(allUserMateri),
     };
-
-    console.log("Calculated unfiltered stats:", stats);
     return stats;
   } catch (error) {
     console.error("Error getting stats with chart:", error);
@@ -284,7 +282,7 @@ async function getStatsWithChart(
 // Function to broadcast stats update to a specific user (always unfiltered)
 export async function broadcastStatsUpdate(
   io: Server,
-  userRole: UserPayload["role"],
+  userRole: UserPayload["role"]
 ) {
   try {
     console.log("Broadcasting unfiltered stats update for role:", userRole);
