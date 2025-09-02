@@ -19,17 +19,20 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
             if [ "${GITHUB_REF##*/}" = "main" ]; then
-              # Production Backend
+              echo "==> Deploying BACKEND PROD"
               cd /root/bri-app/marcom_services
-              git pull origin main
-              bun install
+              git fetch --all
+              git reset --hard origin/main
+              git clean -fd
               export $(grep -v '^#' .env | xargs)
               pm2 restart backend --update-env || pm2 start "bun src/index.ts" --name backend --cwd /root/bri-app/marcom_services --update-env
+
             elif [ "${GITHUB_REF##*/}" = "dev" ]; then
-              # Development Backend
+              echo "==> Deploying BACKEND DEV"
               cd /root/bri-app-dev/marcom-services-dev
-              git pull origin dev
-              bun install
+              git fetch --all
+              git reset --hard origin/dev
+              git clean -fd
               export $(grep -v '^#' .env.dev | xargs)
               pm2 restart backend-dev --update-env || pm2 start "bun src/index.ts" --name backend-dev --cwd /root/bri-app-dev/marcom-services-dev --update-env
             fi
