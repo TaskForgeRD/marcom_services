@@ -21,7 +21,6 @@ const PORT = Number(process.env.PORT) || 5001;
 const HOST = process.env.HOST || "127.0.0.1";
 const SOCKET_IO_PORT = Number(process.env.SOCKET_IO) || 5002;
 
-// Ensure uploads directory exists
 const uploadsDir =
   process.env.UPLOAD_DIR || path.join(process.cwd(), "uploads");
 
@@ -41,11 +40,9 @@ const app = new Elysia()
   .use(usersController)
   .use(fileRoutes);
 
-// Create HTTP server and setup Socket.IO
 const server = createServer();
 const io = setupSocketIO(server);
 
-// Start the server
 app.listen({
   port: PORT,
   hostname: HOST,
