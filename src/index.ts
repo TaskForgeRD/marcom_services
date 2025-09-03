@@ -17,8 +17,9 @@ import { fileRoutes } from "./routes/fileRoutes";
 import { setupSocketIO } from "./socket/socketServer";
 import { usersController } from "./controllers/userController";
 
-const SOCKET_IO_PORT = process.env.SOCKET_IO || 5001;
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || "";
+const HOST = process.env.HOST || "";
+const SOCKET_IO_PORT = process.env.SOCKET_IO || "";
 
 // Ensure uploads directory exists
 const uploadsDir =
@@ -45,11 +46,14 @@ const server = createServer();
 const io = setupSocketIO(server);
 
 // Start the server
-app.listen(PORT);
-server.listen(SOCKET_IO_PORT); // Socket.IO on different port
+app.listen({
+  port: PORT,
+  hostname: HOST,
+});
+server.listen(SOCKET_IO_PORT);
 
-console.log(`🦊 Elysia is running at localhost:${PORT}`);
-console.log(`🔌 Socket.IO is running at localhost:${SOCKET_IO_PORT}`);
+console.log(`🦊 Elysia is running at http://${HOST}:${PORT}`);
+console.log(`🔌 Socket.IO is running at http://${HOST}:${SOCKET_IO_PORT}`);
 
 // Export io instance for use in other files
 export { io };
