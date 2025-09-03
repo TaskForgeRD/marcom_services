@@ -1,0 +1,29 @@
+name: 🚀 Deploy Backend
+
+on:
+  push:
+    branches:
+      - master
+      - dev
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Deploy Backend
+        run: |
+          if [[ "${GITHUB_REF_NAME}" == "master" ]]; then
+            ssh -o StrictHostKeyChecking=no root@${{ secrets.SERVER_IP }} "bash /root/bri-app/scripts/deploy-prod.sh"
+          elif [[ "${GITHUB_REF_NAME}" == "dev" ]]; then
+            ssh -o StrictHostKeyChecking=no root@${{ secrets.SERVER_IP }} "bash /root/bri-app-dev/scripts/deploy-dev.sh"
+          fi
+
