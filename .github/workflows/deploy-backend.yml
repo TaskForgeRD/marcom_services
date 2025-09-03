@@ -22,8 +22,8 @@ jobs:
       - name: Deploy Backend
         run: |
           if [[ "${GITHUB_REF_NAME}" == "master" ]]; then
-            ssh -o StrictHostKeyChecking=no root@${{ secrets.SERVER_IP }} "bash /root/bri-app/scripts/deploy-backend-prod.sh"
+            ssh -o StrictHostKeyChecking=no root@${{ secrets.SERVER_IP }} "bash /root/bri-app/scripts/deploy-prod.sh"
           elif [[ "${GITHUB_REF_NAME}" == "dev" ]]; then
-            ssh -o StrictHostKeyChecking=no root@${{ secrets.SERVER_IP }} "bash /root/bri-app-dev/scripts/deploy-backend-dev.sh"
+            ssh -o StrictHostKeyChecking=no root@${{ secrets.SERVER_IP }} "bash /root/bri-app-dev/scripts/deploy-dev.sh"
           fi
 
