@@ -17,9 +17,9 @@ import { fileRoutes } from "./routes/fileRoutes";
 import { setupSocketIO } from "./socket/socketServer";
 import { usersController } from "./controllers/userController";
 
-const PORT = process.env.PORT || "";
-const HOST = process.env.HOST || "";
-const SOCKET_IO_PORT = process.env.SOCKET_IO || "";
+const PORT = Number(process.env.PORT) || 5001;
+const HOST = process.env.HOST || "127.0.0.1";
+const SOCKET_IO_PORT = Number(process.env.SOCKET_IO) || 5002;
 
 // Ensure uploads directory exists
 const uploadsDir =
@@ -50,7 +50,7 @@ app.listen({
   port: PORT,
   hostname: HOST,
 });
-server.listen(SOCKET_IO_PORT);
+server.listen(SOCKET_IO_PORT, HOST);
 
 console.log(`🦊 Elysia is running at http://${HOST}:${PORT}`);
 console.log(`🔌 Socket.IO is running at http://${HOST}:${SOCKET_IO_PORT}`);
