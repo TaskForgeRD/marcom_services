@@ -10,7 +10,7 @@ import { authController } from "./controllers/authController";
 import { brandController } from "./controllers/brandController";
 import { clusterController } from "./controllers/clusterController";
 import { fiturController } from "./controllers/fiturController";
-import { jenisController } from "./controllers/jenisContoller";
+import { jenisController } from "./controllers/jenisController";
 import { materiController } from "./controllers/materiController";
 
 import { fileRoutes } from "./routes/fileRoutes";

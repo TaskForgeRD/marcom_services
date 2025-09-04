@@ -277,24 +277,3 @@ export async function deleteDokumenByMateriId(materiId: number) {
     materiId,
   ]);
 }
-
-// Helper functions for reference data
-export async function getAllFitur() {
-  const [rows] = await pool.query("SELECT * FROM fitur ORDER BY name");
-  return rows as any[];
-}
-
-export async function getAllJenis() {
-  const [rows] = await pool.query("SELECT * FROM jenis ORDER BY name");
-  return rows as any[];
-}
-
-export async function getAllBrands() {
-  const [rows] = await pool.query("SELECT * FROM brand ORDER BY name");
-  return rows as any[];
-}
-
-export async function getAllClusters() {
-  const [rows] = await pool.query("SELECT * FROM cluster ORDER BY name");
-  return rows as any[];
-}

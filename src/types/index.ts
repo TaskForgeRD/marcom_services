@@ -28,26 +28,6 @@ export type DokumenMateriKeyword = {
   keyword: string;
 };
 
-export type MateriResponse = {
-  _id: string;
-  brand: string;
-  cluster: string;
-  fitur: string;
-  nama_materi: string;
-  jenis: string;
-  start_date: string;
-  end_date: string;
-  periode: string;
-  dokumenMateri: DokumenMateriWithKeywords[];
-};
-
-export type DokumenMateriWithKeywords = {
-  linkDokumen: string;
-  thumbnail: string;
-  tipeMateri: string;
-  keywords: string[];
-};
-
 export type User = {
   id: number;
   google_id: string;

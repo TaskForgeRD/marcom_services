@@ -14,7 +14,7 @@ function isMateriAktif(itemEndDate: string | null): boolean {
   if (!itemEndDate) return false;
   const now = new Date();
   const todayUTC = new Date(
-    Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()),
+    Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())
   );
   const endDate = new Date(itemEndDate);
   return endDate > todayUTC;
@@ -109,8 +109,8 @@ function applyFilters(data: any[], filters: any) {
       const keywordMatch = Array.isArray(item.dokumenMateri)
         ? item.dokumenMateri.some((dokumen: any) =>
             (dokumen.keywords || []).some((keyword: string) =>
-              keyword.toLowerCase().includes(searchLower),
-            ),
+              keyword.toLowerCase().includes(searchLower)
+            )
           )
         : false;
 
@@ -122,7 +122,7 @@ function applyFilters(data: any[], filters: any) {
       const hasKeyVisualDoc =
         Array.isArray(item.dokumenMateri) &&
         item.dokumenMateri.some(
-          (dokumen: any) => dokumen.tipeMateri === "Key Visual",
+          (dokumen: any) => dokumen.tipeMateri === "Key Visual"
         );
       if (!hasKeyVisualDoc) return false;
     }
@@ -157,7 +157,7 @@ export async function getAllMateriWithPagination(
   userRole?: Role,
   page: number = 1,
   limit: number = 10,
-  filters: any = {},
+  filters: any = {}
 ) {
   try {
     // Get all data first (without hiding any fields initially)
@@ -185,7 +185,7 @@ export async function getAllMateriWithPagination(
     // Apply permissions based on role and status for each item
     const dataWithPermissions = applyPermissionsByRoleAndStatus(
       paginatedData,
-      userRole,
+      userRole
     );
 
     return {
@@ -254,7 +254,7 @@ export async function getAllMateri(
   userRole?: Role,
   startDate?: string,
   endDate?: string,
-  brand?: string,
+  brand?: string
 ) {
   try {
     // Get all data without hiding fields initially
@@ -290,7 +290,7 @@ export async function getAllMateri(
     // Apply permissions based on role and status for each item
     const dataWithPermissions = applyPermissionsByRoleAndStatus(
       roleFilteredData,
-      userRole,
+      userRole
     );
 
     return dataWithPermissions;
@@ -317,7 +317,7 @@ export async function createMateri(formData: FormData, userId: number) {
     // Get brand, cluster, fitur, and jenis IDs
     const brandId = await brandService.getBrandIdByName(materiData.brand);
     const clusterId = await clusterService.getClusterIdByName(
-      materiData.cluster,
+      materiData.cluster
     );
     const fiturId = await fiturService.getFiturIdByName(materiData.fitur);
     const jenisId = await jenisService.getJenisIdByName(materiData.jenis);
@@ -345,21 +345,21 @@ export async function createMateri(formData: FormData, userId: number) {
 
     // Handle dokumen materi
     const dokumenCount = parseInt(
-      (formData.get("dokumenMateriCount") as string) || "0",
+      (formData.get("dokumenMateriCount") as string) || "0"
     );
 
     for (let i = 0; i < dokumenCount; i++) {
       const linkDokumen = formData.get(
-        `dokumenMateri[${i}][linkDokumen]`,
+        `dokumenMateri[${i}][linkDokumen]`
       ) as string;
       const tipeMateri = formData.get(
-        `dokumenMateri[${i}][tipeMateri]`,
+        `dokumenMateri[${i}][tipeMateri]`
       ) as string;
       const thumbnailFile = formData.get(
-        `dokumenMateri[${i}][thumbnail]`,
+        `dokumenMateri[${i}][thumbnail]`
       ) as File;
       const keywords = JSON.parse(
-        (formData.get(`dokumenMateri[${i}][keywords]`) as string) || "[]",
+        (formData.get(`dokumenMateri[${i}][keywords]`) as string) || "[]"
       );
 
       if (linkDokumen || thumbnailFile) {
@@ -393,19 +393,11 @@ export async function createMateri(formData: FormData, userId: number) {
   }
 }
 
-// NEW: Helper function to get user role from request context
-// This should be passed from the controller
-function getUserRoleFromContext(userId: number): Promise<Role | undefined> {
-  // This would typically query the database to get user role
-  // For now, we'll assume it's passed from the controller
-  return Promise.resolve(undefined);
-}
-
 export async function updateMateri(
   id: number,
   formData: FormData,
   userId: number,
-  userRole?: Role, // NEW: Add userRole parameter
+  userRole?: Role // NEW: Add userRole parameter
 ) {
   try {
     // Check if materi exists
@@ -420,7 +412,7 @@ export async function updateMateri(
         existingMateri.end_date && isMateriAktif(existingMateri.end_date);
       if (!isActive) {
         throw new Error(
-          "Anda tidak memiliki akses untuk mengupdate materi yang expired",
+          "Anda tidak memiliki akses untuk mengupdate materi yang expired"
         );
       }
     }
@@ -443,7 +435,7 @@ export async function updateMateri(
     // Get brand, cluster, fitur, and jenis IDs
     const brandId = await brandService.getBrandIdByName(materiData.brand);
     const clusterId = await clusterService.getClusterIdByName(
-      materiData.cluster,
+      materiData.cluster
     );
     const fiturId = await fiturService.getFiturIdByName(materiData.fitur);
     const jenisId = await jenisService.getJenisIdByName(materiData.jenis);
@@ -478,12 +470,12 @@ export async function updateMateri(
 
     // Handle new dokumen materi
     const dokumenCount = parseInt(
-      (formData.get("dokumenMateriCount") as string) || "0",
+      (formData.get("dokumenMateriCount") as string) || "0"
     );
 
     for (let i = 0; i < dokumenCount; i++) {
       let linkDokumen = formData.get(
-        `dokumenMateri[${i}][linkDokumen]`,
+        `dokumenMateri[${i}][linkDokumen]`
       ) as string;
 
       // NEW: For admin users, preserve original link_dokumen from database
@@ -491,23 +483,23 @@ export async function updateMateri(
         linkDokumen = existingDokumens[i].link_dokumen;
         console.log(
           `Admin detected: Preserving original link for dokumen ${i}:`,
-          linkDokumen,
+          linkDokumen
         );
       }
 
       const tipeMateri = formData.get(
-        `dokumenMateri[${i}][tipeMateri]`,
+        `dokumenMateri[${i}][tipeMateri]`
       ) as string;
       const thumbnailFile = formData.get(
-        `dokumenMateri[${i}][thumbnail]`,
+        `dokumenMateri[${i}][thumbnail]`
       ) as File;
       const keywords = JSON.parse(
-        (formData.get(`dokumenMateri[${i}][keywords]`) as string) || "[]",
+        (formData.get(`dokumenMateri[${i}][keywords]`) as string) || "[]"
       );
 
       // Get existing thumbnail path from form data or find matching existing document
       const existingThumbnailPath = formData.get(
-        `dokumenMateri[${i}][existingThumbnail]`,
+        `dokumenMateri[${i}][existingThumbnail]`
       ) as string;
 
       if (linkDokumen || thumbnailFile || existingThumbnailPath) {
@@ -523,7 +515,7 @@ export async function updateMateri(
           // Try to match with existing document by link or index
           const existingDoc = existingDokumens.find(
             (doc: any, index: number) =>
-              doc.link_dokumen === linkDokumen || index === i,
+              doc.link_dokumen === linkDokumen || index === i
           );
           if (existingDoc && existingDoc.thumbnail) {
             thumbnailPath = existingDoc.thumbnail;
